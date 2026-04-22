@@ -21,8 +21,10 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 dotenv.config();
 
-// Connect to database
-connectDB();
+// Connect to database (with error handling for serverless)
+connectDB().catch(err => {
+    console.error('Initial MongoDB connection failed:', err.message);
+});
 
 const app = express();
 
@@ -33,8 +35,7 @@ app.use(express.json());
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://hosocial-five.vercel.app',
-    'https://ho-soci-al.vercel.app',
+    'https://huntsmansocial.vercel.app',
     process.env.CLIENT_URL // For production Vercel URL
 ].filter(Boolean);
 

@@ -5,17 +5,20 @@ const path = require('path');
 let serviceAccount;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // Priority: Environment Variable (for Vercel/Production)
+    console.log('Firebase: Attempting to load from environment variable...');
     serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    console.log('Firebase: Environment variable parsed successfully.');
   } else {
-    // Fallback: Local JSON file
     const keyPath = path.join(__dirname, 'serviceAccountKey.json');
     if (fs.existsSync(keyPath)) {
       serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+    } else {
+      console.warn('Firebase: No service account found in ENV or local file.');
     }
   }
 } catch (error) {
-  console.error('Error loading Firebase Service Account:', error.message);
+  console.error('CRITICAL FIREBASE ERROR:', error.message);
+  console.error('Check if FIREBASE_SERVICE_ACCOUNT is valid JSON in Vercel settings.');
 }
 
 if (!admin.apps.length && serviceAccount) {

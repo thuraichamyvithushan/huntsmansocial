@@ -1,10 +1,10 @@
 const admin = require('../config/firebase');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 const uploadToFirebase = async (file) => {
     return new Promise((resolve, reject) => {
         const bucket = admin.storage().bucket();
-        const fileName = `uploads/${uuidv4()}_${file.originalname}`;
+        const fileName = `uploads/${crypto.randomUUID()}_${file.originalname}`;
         const fileUpload = bucket.file(fileName);
 
         const blobStream = fileUpload.createWriteStream({
