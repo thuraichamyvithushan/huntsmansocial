@@ -25,6 +25,10 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response && error.response.status === 401) {
+            console.error('SECURITY ALERT: Backend returned 401 (Unauthorized). Logging out user...');
+            console.log('Failing URL:', error.config.url);
+            console.log('Current localStorage info:', localStorage.getItem('userInfo'));
+            
             localStorage.removeItem('userInfo');
             window.location.href = '/login';
         }

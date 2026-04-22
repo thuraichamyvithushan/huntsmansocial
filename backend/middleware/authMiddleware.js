@@ -7,11 +7,20 @@ const protect = async (req, res, next) => {
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
             token = req.headers.authorization.split(' ')[1];
+            if (!process.env.JWT_SECRET) {
+                console.error('CRITICAL: JWT_SECRET is missing from environment variables!');
+            }
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             req.user = await User.findById(decoded.id).select('-password');
+            
+            if (!req.user) {
+                console.error('AUTH ERROR: User in token not found in database.');
+                return res.status(401).json({ message: 'User no longer exists' });
+            }
+            
             next();
         } catch (error) {
-            console.error(error);
+            console.error('AUTH TOKEN FAILED:', error.message);
             res.status(401).json({ message: 'Not authorized, token failed' });
         }
     }
