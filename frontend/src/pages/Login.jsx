@@ -27,12 +27,19 @@ const Login = () => {
             const idToken = await userCredential.user.getIdToken();
 
             // 2. Send token to our backend to get app-specific user data (role, status, etc)
+            // 2. Send token to our backend to get app-specific user data (role, status, etc)
             const { data } = await api.post('/auth/firebase', { idToken });
             
-            login(data);
+            // 3. Save user info and wait for it
+            await login(data);
+            
             toast.success('Welcome back!');
-            if (data.role === 'admin') navigate('/admin-dashboard');
-            else navigate('/dashboard');
+            
+            // 4. Redirect based on role
+            setTimeout(() => {
+                if (data.role === 'admin') navigate('/admin-dashboard', { replace: true });
+                else navigate('/dashboard', { replace: true });
+            }, 100);
         } catch (error) {
             console.error('Login error:', error);
             const message = error.response?.data?.message || error.message || 'Login failed';
