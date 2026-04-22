@@ -17,8 +17,10 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = (userData) => {
+        console.log('AuthContext: Saving user data to localStorage...', userData);
         localStorage.setItem('userInfo', JSON.stringify(userData));
         setUser(userData);
+        console.log('AuthContext: User state updated.');
     };
 
     const logout = async () => {

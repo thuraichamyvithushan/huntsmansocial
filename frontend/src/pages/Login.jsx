@@ -28,10 +28,20 @@ const Login = () => {
 
             // 2. Send token to our backend to get app-specific user data (role, status, etc)
             // 2. Send token to our backend to get app-specific user data (role, status, etc)
+            console.log('Sending token to backend...');
             const { data } = await api.post('/auth/firebase', { idToken });
+            console.log('Backend response received:', data);
             
-            // 3. Save user info and wait for it
-            await login(data);
+            if (!data.role) {
+                console.error('CRITICAL: User role is missing from backend response!');
+                toast.error('Login failed: Invalid user data from server');
+                setLoading(false);
+                return;
+            }
+
+            // 3. Save user info
+            login(data);
+            console.log('User state set. Redirecting to:', data.role === 'admin' ? '/admin-dashboard' : '/dashboard');
             
             toast.success('Welcome back!');
             
@@ -39,7 +49,7 @@ const Login = () => {
             setTimeout(() => {
                 if (data.role === 'admin') navigate('/admin-dashboard', { replace: true });
                 else navigate('/dashboard', { replace: true });
-            }, 100);
+            }, 200);
         } catch (error) {
             console.error('Login error:', error);
             const message = error.response?.data?.message || error.message || 'Login failed';
