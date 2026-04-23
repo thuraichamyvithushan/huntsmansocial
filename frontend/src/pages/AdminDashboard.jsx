@@ -21,7 +21,7 @@ const AdminDashboard = () => {
     const [searchParams] = useSearchParams();
     const initialTab = searchParams.get('tab') || 'active';
 
-    const [stats, setStats] = useState({ totalUsers: 0, pendingReview: 0, totalPosts: 0, activePosts: 0 });
+    const [stats, setStats] = useState({ totalUsers: 0, totalPosts: 0, activePosts: 0, archivedPosts: 0 });
     const [recentPending, setRecentPending] = useState([]);
     const [recentActivity, setRecentActivity] = useState([]);
     const [activePosts, setActivePosts] = useState([]);
@@ -100,8 +100,8 @@ const AdminDashboard = () => {
             setStats(prev => ({
                 ...prev,
                 totalPosts: all.length,
-                activePosts: activeRes.data.length,
-                pendingReview: activeRes.data.filter(p => !p.totalReplies || p.totalReplies === 0).length
+                activePosts: activeData.length,
+                archivedPosts: archivedData.length
             }));
         } catch { console.error('Failed to fetch posts'); }
         finally { setLoadingPosts(false); }
@@ -160,9 +160,9 @@ const AdminDashboard = () => {
 
     const statCards = [
         { title: 'Approved Members', value: stats.totalUsers, icon: Users, color: 'text-black' },
-        { title: 'Pending Review', value: stats.pendingReview, icon: Clock, color: 'text-primary-600' },
-        { title: 'Total Posts', value: stats.totalPosts, icon: FileText, color: 'text-black' },
         { title: 'Live Posts', value: stats.activePosts, icon: CheckCircle, color: 'text-black' },
+        { title: 'Archived Content', value: stats.archivedPosts, icon: Archive, color: 'text-primary-600' },
+        { title: 'Total Catalog', value: stats.totalPosts, icon: FileText, color: 'text-black' },
     ];
 
     return (
