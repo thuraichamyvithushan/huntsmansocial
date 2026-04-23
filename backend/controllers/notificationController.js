@@ -42,7 +42,7 @@ exports.getAdminNotifications = async (req, res) => {
                 _id: n._id,
                 postId: n._id,
                 type: 'reply',
-                postTitle: post?.title || 'Unknown Assignment',
+                postTitle: post?.title || 'Unknown Post',
                 userName: user?.name || 'Team Member',
                 comment: n.lastComment,
                 createdAt: n.lastDate,
@@ -72,14 +72,14 @@ exports.getAdminNotifications = async (req, res) => {
             .slice(0, 10);
 
         // 4. Calculate total unread count
-        const unreadAssignmentsWithComments = await Comment.distinct('postId', {
+        const unreadPostsWithComments = await Comment.distinct('postId', {
             readByAdmin: false,
             userId: { $ne: adminId }
         });
         const unreadSystemCount = await Notification.countDocuments({ read: false });
 
         res.json({
-            unreadCount: unreadAssignmentsWithComments.length + unreadSystemCount,
+            unreadCount: unreadPostsWithComments.length + unreadSystemCount,
             latestComments: allNotifications
         });
     } catch (error) {
@@ -107,7 +107,7 @@ exports.markAsRead = async (req, res) => {
                     { $addToSet: { readByUsers: userId } }
                 );
             }
-        } else if (type === 'new_assignment') {
+        } else if (type === 'new_post' || type === 'new_assignment') {
             // Mark the post itself as viewed by this user
             await Post.findByIdAndUpdate(id, { $addToSet: { viewedBy: userId } });
         } else {
@@ -125,7 +125,7 @@ exports.markAsRead = async (req, res) => {
 // @route   GET /api/notifications/user
 // @access  Private
 exports.getUserNotifications = async (req, res) => {
-    // For now, users only have comments and assignments.
+    // For now, users only have comments and posts.
     // We can proxy this to the existing commentController logic or unify here.
     // I'll keep it simple for now as the user specifically asked for Admin.
     try {

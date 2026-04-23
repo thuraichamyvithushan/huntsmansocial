@@ -6,12 +6,30 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import CommentSection from '../components/CommentSection';
 
+const FacebookIcon = ({ size = 12 }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+);
+
+const InstagramIcon = ({ size = 12 }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+);
+
 const UserDashboard = () => {
     const { user: currentUser } = useAuth();
     const [posts, setPosts] = useState([]);
+    const [filter, setFilter] = useState('all');
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 5;
+
+    const filteredPosts = posts.filter(post => {
+        if (filter === 'all') return true;
+        if (filter === 'Instagram') return post.platforms?.includes('Instagram');
+        if (filter === 'Facebook') return post.platforms?.includes('Facebook');
+        if (filter === 'New Zealand') return post.regions?.includes('New Zealand');
+        if (filter === 'Australia') return post.regions?.includes('Australia');
+        return true;
+    });
 
     const fetchPosts = useCallback(async () => {
         try {
@@ -19,7 +37,7 @@ const UserDashboard = () => {
             setPosts(res.data);
         } catch (error) {
             console.error('Failed to fetch posts');
-            toast.error('Failed to load assignments');
+            toast.error('Failed to load posts');
         } finally {
             setLoading(false);
         }
@@ -38,17 +56,38 @@ const UserDashboard = () => {
         }
     };
 
+    const filters = [
+        { key: 'all', label: 'All Content' },
+        { key: 'Facebook', label: 'Facebook' },
+        { key: 'Instagram', label: 'Instagram' },
+        { key: 'Australia', label: 'Australia' },
+        { key: 'New Zealand', label: 'New Zealand' },
+    ];
+
     return (
         <div className="min-h-screen pb-20 -m-4 md:-m-10 p-4 md:p-10">
             <div className="max-w-2xl mx-auto space-y-6">
                 {/* Header */}
-                <div className="border-b-4 border-black pb-6 mb-8 backdrop-blur-sm">
+                <div className="border-b-4 border-black pb-6 mb-4 backdrop-blur-sm">
                     <h1 className="text-3xl md:text-5xl font-black text-black tracking-tighter uppercase italic drop-shadow-sm">
                         Latest <span className="text-primary-600">Designs.</span>
                     </h1>
                     <p className="text-black/70 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">
-                        Social media content tagged for you
+                        Social media content published for you
                     </p>
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="flex flex-wrap gap-2 pb-4 overflow-x-auto no-scrollbar">
+                    {filters.map(f => (
+                        <button
+                            key={f.key}
+                            onClick={() => { setFilter(f.key); setCurrentPage(1); }}
+                            className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border-2 border-black transition-all shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 ${filter === f.key ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'}`}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
                 </div>
 
                 {/* Content Feed */}
@@ -73,14 +112,14 @@ const UserDashboard = () => {
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        {posts.length === 0 ? (
+                        {filteredPosts.length === 0 ? (
                             <div className="p-16 text-center border-2 border-black border-dashed backdrop-blur-sm bg-white/20">
                                 <Clock size={40} className="mx-auto mb-4 text-black" />
-                                <p className="text-[10px] font-black uppercase tracking-widest">No assignments found</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest">No posts found for this filter</p>
                             </div>
                         ) : (
                             <>
-                                {posts.slice(0, currentPage * ITEMS_PER_PAGE).map((post, index) => (
+                                {filteredPosts.slice(0, currentPage * ITEMS_PER_PAGE).map((post, index) => (
                                     <PostItem
                                         key={post._id}
                                         post={post}
@@ -90,12 +129,12 @@ const UserDashboard = () => {
                                     />
                                 ))}
                                 
-                                {posts.length > currentPage * ITEMS_PER_PAGE && (
+                                {filteredPosts.length > currentPage * ITEMS_PER_PAGE && (
                                     <button
                                         onClick={() => setCurrentPage(prev => prev + 1)}
                                         className="w-full py-4 border-2 border-black font-black uppercase tracking-widest text-xs hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000]"
                                     >
-                                        Load More Assignments
+                                        Load More Posts
                                     </button>
                                 )}
                             </>
@@ -141,8 +180,26 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className={`backdrop-blur-md bg-white/70 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.7)] overflow-hidden transition-all ${isLocalNew ? 'ring-2 ring-primary-600 ring-offset-2' : ''}`}
+            className={`relative backdrop-blur-md bg-white/70 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.7)] overflow-hidden transition-all ${isLocalNew ? 'ring-2 ring-primary-600 ring-offset-2' : ''}`}
         >
+            {/* Top-right badges */}
+            <div className="absolute top-4 right-4 flex flex-col items-end gap-1.5 z-20 pointer-events-none">
+                <div className="flex gap-1">
+                    {post.platforms?.map(p => (
+                        <div key={p} className={`p-1.5 border border-black shadow-[2px_2px_0px_#000] flex items-center justify-center ${p === 'Facebook' ? 'bg-[#1877F2] text-white' : 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white'}`}>
+                            {p === 'Facebook' ? <FacebookIcon /> : <InstagramIcon />}
+                        </div>
+                    ))}
+                </div>
+                <div className="flex gap-1">
+                    {post.regions?.map(r => (
+                        <span key={r} className="text-[7px] font-black uppercase px-1.5 py-0.5 bg-black text-white border border-black shadow-[2px_2px_0px_#ff3e3e]">
+                            {r}
+                        </span>
+                    ))}
+                </div>
+            </div>
+
             {/* Post Header */}
             <div className="p-4 flex items-center justify-between border-b border-black/10 bg-white/30">
                 <div className="flex items-center gap-3">
@@ -173,7 +230,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                     <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none italic hover:text-primary-600 transition-colors">
                         {post.title}
                     </h3>
-                    <p className="text-xs text-gray-600 leading-relaxed font-medium line-clamp-2">
+                    <p className="text-xs text-gray-600 leading-relaxed font-medium line-clamp-2 whitespace-pre-wrap">
                         {post.description}
                     </p>
                 </div>

@@ -74,7 +74,7 @@ const Login = () => {
                 <div className="relative z-10">
                     <h2 className="text-6xl font-black text-white leading-tight mb-6">Experience <br /> <span className="text-primary-600">Premium</span> Control.</h2>
                     <p className="text-white/40 max-w-sm text-sm leading-relaxed">
-                        The next generation of content assignment and feedback management. Built for speed, designed for clarity.
+                        The next generation of content management and feedback. Built for speed, designed for clarity.
                     </p>
                 </div>
 

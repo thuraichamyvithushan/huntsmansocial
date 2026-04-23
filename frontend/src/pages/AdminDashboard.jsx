@@ -21,7 +21,7 @@ const AdminDashboard = () => {
     const [searchParams] = useSearchParams();
     const initialTab = searchParams.get('tab') || 'active';
 
-    const [stats, setStats] = useState({ totalUsers: 0, pendingReview: 0, totalPosts: 0, activeAssignments: 0 });
+    const [stats, setStats] = useState({ totalUsers: 0, pendingReview: 0, totalPosts: 0, activePosts: 0 });
     const [recentPending, setRecentPending] = useState([]);
     const [recentActivity, setRecentActivity] = useState([]);
     const [activePosts, setActivePosts] = useState([]);
@@ -33,6 +33,15 @@ const AdminDashboard = () => {
     const [editingPost, setEditingPost] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [subFilter, setSubFilter] = useState('all');
+
+    const subFilters = [
+        { key: 'all', label: 'All' },
+        { key: 'Facebook', label: 'Facebook' },
+        { key: 'Instagram', label: 'Instagram' },
+        { key: 'Australia', label: 'Australia' },
+        { key: 'New Zealand', label: 'New Zealand' },
+    ];
 
     // Update tab if URL param changes
     useEffect(() => {
@@ -46,7 +55,7 @@ const AdminDashboard = () => {
     // Reset page on search
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, subFilter]);
 
     /* ── Fetch stats + pending users ── */
     useEffect(() => {
@@ -91,7 +100,7 @@ const AdminDashboard = () => {
             setStats(prev => ({
                 ...prev,
                 totalPosts: all.length,
-                activeAssignments: activeRes.data.length,
+                activePosts: activeRes.data.length,
                 pendingReview: activeRes.data.filter(p => !p.totalReplies || p.totalReplies === 0).length
             }));
         } catch { console.error('Failed to fetch posts'); }
@@ -134,12 +143,14 @@ const AdminDashboard = () => {
     };
 
     const posts = (tab === 'active' ? activePosts : archivedPosts).filter(post => {
-        const titleMatch = post.title.toLowerCase().includes(searchTerm.toLowerCase());
-        const userMatch = post.assignedUsers?.some(u =>
-            u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.email.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        return titleMatch || userMatch;
+        const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase());
+        let matchesSubFilter = true;
+        if (subFilter === 'Instagram') matchesSubFilter = post.platforms?.includes('Instagram');
+        else if (subFilter === 'Facebook') matchesSubFilter = post.platforms?.includes('Facebook');
+        else if (subFilter === 'New Zealand') matchesSubFilter = post.regions?.includes('New Zealand');
+        else if (subFilter === 'Australia') matchesSubFilter = post.regions?.includes('Australia');
+        
+        return matchesSearch && matchesSubFilter;
     });
 
     const totalPages = Math.ceil(posts.length / ITEMS_PER_PAGE);
@@ -151,7 +162,7 @@ const AdminDashboard = () => {
         { title: 'Approved Members', value: stats.totalUsers, icon: Users, color: 'text-black' },
         { title: 'Pending Review', value: stats.pendingReview, icon: Clock, color: 'text-primary-600' },
         { title: 'Total Posts', value: stats.totalPosts, icon: FileText, color: 'text-black' },
-        { title: 'Live Posts', value: stats.activeAssignments, icon: CheckCircle, color: 'text-black' },
+        { title: 'Live Posts', value: stats.activePosts, icon: CheckCircle, color: 'text-black' },
     ];
 
     return (
@@ -165,7 +176,7 @@ const AdminDashboard = () => {
                         HO <span className="text-primary-600">Social.</span>
                     </h1>
                     <p className="text-gray-400 font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] text-[10px] md:text-xs mt-2">
-                        Manage designs, tag members & track engagement
+                        Manage designs & track engagement
                     </p>
                 </div>
                 <div className="hidden md:block text-right">
@@ -240,7 +251,7 @@ const AdminDashboard = () => {
                                 </div>
                                 <div>
                                     <p className="text-xs md:text-sm font-black uppercase tracking-tight group-hover:text-white transition-colors">New Post</p>
-                                    <p className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Upload design & tag members</p>
+                                    <p className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Upload design for all members</p>
                                 </div>
                             </div>
                             <ArrowRight size={18} className="text-primary-600 opacity-0 group-hover:opacity-100 transition-all" />
@@ -252,7 +263,7 @@ const AdminDashboard = () => {
                                 </div>
                                 <div>
                                     <p className="text-xs md:text-sm font-black uppercase tracking-tight group-hover:text-white transition-colors">Member Directory</p>
-                                    <p className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Manage tagged members</p>
+                                    <p className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Manage platform members</p>
                                 </div>
                             </div>
                             <ArrowRight size={18} className="text-primary-600 opacity-0 group-hover:opacity-100 transition-all" />
@@ -261,7 +272,7 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            {/* ── Assignments with Tabs ───────────────────────────── */}
+            {/* ── Posts with Tabs ───────────────────────────── */}
             <div className="space-y-0">
                 {/* Header row */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b-4 border-black pb-8 mb-0">
@@ -270,7 +281,7 @@ const AdminDashboard = () => {
                             Manage <span className="text-primary-600">Posts.</span>
                         </h1>
                         <p className="text-gray-400 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs mt-2">
-                            Social media designs shared with tagged members
+                            Social media designs shared with all members
                         </p>
                     </div>
                     <div className="hidden md:block text-right">
@@ -280,39 +291,55 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Search and Tabs */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-8 border-b-2 border-black">
-                    <div className="flex">
-                        {TABS.map(t => (
-                            <button key={t.key} onClick={() => setTab(t.key)}
-                                className={`relative px-6 md:px-10 py-3 md:py-4 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] transition-all ${tab === t.key ? 'bg-black text-white' : 'bg-white text-gray-400 hover:text-black'
-                                    }`}
-                            >
-                                {t.label}
-                                {t.key === 'active' && activePosts.length > 0 && (
-                                    <span className={`ml-2 px-1.5 py-0.5 text-[8px] font-black ${tab === t.key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                                        {activePosts.length}
-                                    </span>
-                                )}
-                                {t.key === 'archive' && archivedPosts.length > 0 && (
-                                    <span className={`ml-2 px-1.5 py-0.5 text-[8px] font-black ${tab === t.key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                                        {archivedPosts.length}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
+                <div className="flex flex-col space-y-4 mt-8 border-b-2 border-black">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex">
+                            {TABS.map(t => (
+                                <button key={t.key} onClick={() => setTab(t.key)}
+                                    className={`relative px-6 md:px-10 py-3 md:py-4 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] transition-all ${tab === t.key ? 'bg-black text-white' : 'bg-white text-gray-400 hover:text-black'
+                                        }`}
+                                >
+                                    {t.label}
+                                    {t.key === 'active' && activePosts.length > 0 && (
+                                        <span className={`ml-2 px-1.5 py-0.5 text-[8px] font-black ${tab === t.key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                            {activePosts.length}
+                                        </span>
+                                    )}
+                                    {t.key === 'archive' && archivedPosts.length > 0 && (
+                                        <span className={`ml-2 px-1.5 py-0.5 text-[8px] font-black ${tab === t.key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                            {archivedPosts.length}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex-1 max-w-md pb-2 md:pb-0 px-2">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                                <input
+                                    type="text"
+                                    placeholder="SEARCH BY TITLE..."
+                                    className="w-full bg-transparent border-b border-black/10 focus:border-black py-2 pl-10 pr-4 text-[10px] font-black uppercase tracking-widest outline-none transition-colors"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex-1 max-w-md pb-2 md:pb-0 px-2">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                            <input
-                                type="text"
-                                placeholder="SEARCH BY TITLE OR MEMBER EMAIL..."
-                                className="w-full bg-transparent border-b border-black/10 focus:border-black py-2 pl-10 pr-4 text-[10px] font-black uppercase tracking-widest outline-none transition-colors"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                    {/* Sub-Filters */}
+                    <div className="flex flex-wrap gap-2 pb-4 px-2">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-gray-400 self-center mr-2">Filter By:</span>
+                        {subFilters.map(f => (
+                            <button
+                                key={f.key}
+                                onClick={() => setSubFilter(f.key)}
+                                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border-2 border-black transition-all ${subFilter === f.key ? 'bg-black text-white shadow-[2px_2px_0px_#000]' : 'bg-white text-black hover:bg-gray-50 shadow-[2px_2px_0px_#000]'}`}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -331,7 +358,7 @@ const AdminDashboard = () => {
                                     {tab === 'active' ? (
                                         <>
                                             <Clock size={40} className="mx-auto mb-4" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest">No active assignments</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest">No active posts</p>
                                         </>
                                     ) : (
                                         <>
@@ -426,26 +453,17 @@ const AdminDashboard = () => {
 const EditModal = ({ post, allUsers, onClose, onUpdate }) => {
     const [title, setTitle] = useState(post.title);
     const [description, setDescription] = useState(post.description);
-    const [selectedUsers, setSelectedUsers] = useState(post.assignedUsers?.map(u => u._id) || []);
+    const [selectedPlatforms, setSelectedPlatforms] = useState(post.platforms || []);
+    const [selectedRegions, setSelectedRegions] = useState(post.regions || []);
     const [loading, setLoading] = useState(false);
 
-    const [userSearch, setUserSearch] = useState('');
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-    const toggleUser = (userId) => {
-        setSelectedUsers(prev =>
-            prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
-        );
-        setUserSearch('');
+    const togglePlatform = (p) => {
+        setSelectedPlatforms(prev => prev.includes(p) ? prev.filter(i => i !== p) : [...prev, p]);
     };
 
-    const filteredUsers = allUsers.filter(user =>
-        (user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-            user.email.toLowerCase().includes(userSearch.toLowerCase())) &&
-        !selectedUsers.includes(user._id)
-    );
-
-    const selectedUsersData = allUsers.filter(u => selectedUsers.includes(u._id));
+    const toggleRegion = (r) => {
+        setSelectedRegions(prev => prev.includes(r) ? prev.filter(i => i !== r) : [...prev, r]);
+    };
 
     const handleUpdate = async (e) => {
         e.preventDefault();
@@ -454,17 +472,13 @@ const EditModal = ({ post, allUsers, onClose, onUpdate }) => {
             const { data } = await api.put(`/posts/${post._id}`, {
                 title,
                 description,
-                assignedUsers: JSON.stringify(selectedUsers)
+                platforms: JSON.stringify(selectedPlatforms),
+                regions: JSON.stringify(selectedRegions)
             });
-            // Re-populate data for UI (since backend returns IDs primarily)
-            const updatedForUI = {
-                ...data,
-                assignedUsers: allUsers.filter(u => selectedUsers.includes(u._id))
-            };
-            onUpdate(updatedForUI);
-            toast.success('Assignment updated');
+            onUpdate(data);
+            toast.success('Post updated');
         } catch (error) {
-            toast.error('Failed to update assignment');
+            toast.error('Failed to update post');
         } finally {
             setLoading(false);
         }
@@ -475,92 +489,56 @@ const EditModal = ({ post, allUsers, onClose, onUpdate }) => {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative w-full max-w-2xl bg-white border-2 border-black overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="bg-black p-4 flex items-center justify-between text-white">
-                    <h3 className="text-xs font-black uppercase tracking-widest italic">Modify Assignment</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest italic">Modify Post</h3>
                     <button onClick={onClose} className="hover:text-primary-600 transition-colors"><CloseIcon size={20} /></button>
                 </div>
 
                 <form onSubmit={handleUpdate} className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 custom-scrollbar">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em]">Assignment Title</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em]">Post Title</label>
                         <input type="text" required className="w-full p-3 border-2 border-black text-sm font-bold" value={title} onChange={e => setTitle(e.target.value)} />
                     </div>
 
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-[0.2em]">Instructions</label>
-                        <textarea required className="w-full p-3 border-2 border-black text-sm font-bold min-h-[120px] resize-none" value={description} onChange={e => setDescription(e.target.value)} />
+                        <textarea required className="w-full p-3 border-2 border-black text-sm font-bold min-h-[120px] resize-none whitespace-pre-wrap" value={description} onChange={e => setDescription(e.target.value)} />
                     </div>
 
-                    <div className="space-y-3 relative">
-                        <div className="flex items-center justify-between border-b border-black/10 pb-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em]">Re-assign Members</label>
-                            <span className="text-[10px] text-primary-600 font-bold uppercase">{selectedUsers.length} Assigned</span>
+                    <div className="grid grid-cols-2 gap-8">
+                        {/* Social Media */}
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em]">Social Media</label>
+                            <div className="space-y-2">
+                                {['Facebook', 'Instagram'].map(p => (
+                                    <label key={p} className="flex items-center gap-3 cursor-pointer group">
+                                        <div 
+                                            onClick={() => togglePlatform(p)}
+                                            className={`w-4 h-4 border-2 border-black transition-all flex items-center justify-center ${selectedPlatforms.includes(p) ? 'bg-black' : 'bg-white'}`}
+                                        >
+                                            {selectedPlatforms.includes(p) && <div className="w-1.5 h-1.5 bg-primary-600" />}
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-primary-600 transition-colors">{p}</span>
+                                    </label>
+                                ))}
+                            </div>
                         </div>
 
-                        {/* Search Input */}
-                        <div className="relative">
-                            <Search
-                                className="absolute top-1/2 -translate-y-1/2 text-gray-400"
-                                size={14}
-                                style={{ left: '16px' }}
-                            />
-                            <input
-                                type="text"
-                                placeholder="TYPE NAME OR EMAIL TO FIND MEMBERS..."
-                                className="w-full p-3 border-2 border-black text-[10px] font-black uppercase tracking-widest outline-none focus:border-primary-600 transition-colors"
-                                style={{ paddingLeft: '48px' }}
-                                value={userSearch}
-                                onChange={(e) => {
-                                    setUserSearch(e.target.value);
-                                    setIsDropdownOpen(true);
-                                }}
-                                onFocus={() => setIsDropdownOpen(true)}
-                            />
-
-                            {/* Dropdown Suggestions */}
-                            {isDropdownOpen && userSearch && (
-                                <div className="absolute z-[110] left-0 right-0 top-full mt-1 bg-white border-2 border-black shadow-[8px_8px_0px_#000] max-h-[160px] overflow-y-auto custom-scrollbar">
-                                    {filteredUsers.length === 0 ? (
-                                        <div className="p-4 text-[10px] font-black uppercase text-gray-400">No matches found</div>
-                                    ) : (
-                                        filteredUsers.map(user => (
-                                            <button
-                                                key={user._id}
-                                                type="button"
-                                                onClick={() => {
-                                                    toggleUser(user._id);
-                                                    setIsDropdownOpen(false);
-                                                }}
-                                                className="w-full flex items-center justify-between p-4 hover:bg-black hover:text-white transition-colors text-left border-b border-black/5 last:border-0"
-                                            >
-                                                <div>
-                                                    <div className="text-[10px] font-black uppercase tracking-tighter italic">{user.name}</div>
-                                                    <div className="text-[8px] font-bold opacity-50 tracking-widest">{user.email}</div>
-                                                </div>
-                                                <UserPlus size={12} />
-                                            </button>
-                                        ))
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Selected Chips */}
-                        <div className="flex flex-wrap gap-2 mt-8">
-                            {selectedUsersData.map(user => (
-                                <div key={user._id} className="flex items-center gap-2 bg-black text-white px-3 py-1.5 flex-wrap">
-                                    <span className="text-[9px] font-black uppercase tracking-tighter italic">{user.name}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleUser(user._id)}
-                                        className="hover:text-primary-600 transition-colors"
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                            ))}
-                            {selectedUsers.length === 0 && (
-                                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest italic py-2">No members assigned.</p>
-                            )}
+                        {/* Region */}
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em]">Region</label>
+                            <div className="space-y-2">
+                                {['Australia', 'New Zealand'].map(r => (
+                                    <label key={r} className="flex items-center gap-3 cursor-pointer group">
+                                        <div 
+                                            onClick={() => toggleRegion(r)}
+                                            className={`w-4 h-4 border-2 border-black transition-all flex items-center justify-center ${selectedRegions.includes(r) ? 'bg-black' : 'bg-white'}`}
+                                        >
+                                            {selectedRegions.includes(r) && <div className="w-1.5 h-1.5 bg-primary-600" />}
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-primary-600 transition-colors">{r}</span>
+                                    </label>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -568,7 +546,7 @@ const EditModal = ({ post, allUsers, onClose, onUpdate }) => {
                 <div className="p-4 border-t border-black bg-gray-50 flex gap-4">
                     <button type="button" onClick={onClose} className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-2 border-black hover:bg-black hover:text-white transition-all">Cancel</button>
                     <button type="button" onClick={handleUpdate} disabled={loading} className="flex-[2] py-4 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all flex items-center justify-center gap-2">
-                        {loading ? <Loader2 className="animate-spin" size={16} /> : <><Edit3 size={14} /> Update Assignment</>}
+                        {loading ? <Loader2 className="animate-spin" size={16} /> : <><Edit3 size={14} /> Update Post</>}
                     </button>
                 </div>
             </motion.div>
@@ -597,34 +575,24 @@ const AdminPostCard = ({ post, index, archived, deleteConfirm, onArchive, onUnar
         >
             {/* Thumbnail row */}
             <Link to={`/post/${post._id}`} className="flex items-start gap-4 p-4 md:p-6">
-                <div className="w-20 h-14 shrink-0 bg-gray-100 overflow-hidden border border-black/10">
+                <div className="w-20 h-14 shrink-0 bg-gray-100 overflow-hidden border border-black/10 relative">
                     {firstMedia.url ? (
                         firstMedia.type === 'image'
                             ? <img src={firstMedia.url?.startsWith('http') ? firstMedia.url : `http://localhost:5000${firstMedia.url}`} className="w-full h-full object-cover" alt="" />
                             : <div className="w-full h-full bg-gray-900 flex items-center justify-center"><PlayCircle size={18} className="text-white" /></div>
                     ) : <div className="w-full h-full bg-gray-100" />}
+                    
+                    {/* Tiny badges for admin */}
+                    <div className="absolute top-0 right-0 flex flex-col gap-0.5 pointer-events-none">
+                        {post.platforms?.map(p => (
+                            <div key={p} className={`w-1.5 h-1.5 ${p === 'Facebook' ? 'bg-[#1877F2]' : 'bg-[#ee2a7b]'}`} title={p} />
+                        ))}
+                    </div>
                 </div>
 
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-black uppercase tracking-tight truncate">{post.title}</p>
-                    <p className="text-[8px] text-gray-400 uppercase tracking-widest mt-1 line-clamp-2">{post.description}</p>
-
-                    {/* User Details */}
-                    <div className="mt-3 flex flex-wrap gap-1">
-                        {post.assignedUsers?.map(u => (
-                            <div key={u._id} className="group/user relative">
-                                <div className="px-1.5 py-0.5 bg-gray-100 text-[7px] font-black uppercase tracking-tighter text-gray-500 border border-transparent hover:border-black transition-all cursor-default">
-                                    {u.name.split(' ')[0]}
-                                </div>
-                                <div className="absolute bottom-full left-0 mb-1 hidden group-hover/user:block z-20 bg-black text-white text-[7px] font-bold uppercase tracking-widest px-2 py-1 whitespace-nowrap">
-                                    {u.name} • {u.email}
-                                </div>
-                            </div>
-                        ))}
-                        {(!post.assignedUsers || post.assignedUsers.length === 0) && (
-                            <span className="text-[7px] text-gray-300 uppercase italic">No members assigned</span>
-                        )}
-                    </div>
+                    <p className="text-[8px] text-gray-400 uppercase tracking-widest mt-1 line-clamp-2 whitespace-pre-wrap">{post.description}</p>
                 </div>
 
                 {post.unreadReplies > 0 && (
@@ -649,7 +617,7 @@ const AdminPostCard = ({ post, index, archived, deleteConfirm, onArchive, onUnar
                 {/* Edit */}
                 {!archived && (
                     <button onClick={(e) => { e.preventDefault(); onEdit(); }}
-                        title="Edit assignment"
+                        title="Edit post"
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-black text-[8px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all"
                     >
                         <Edit3 size={11} /> Edit
@@ -669,7 +637,7 @@ const AdminPostCard = ({ post, index, archived, deleteConfirm, onArchive, onUnar
                         </>
                     ) : (
                         <button onClick={(e) => { e.preventDefault(); onDeleteRequest(post._id); }}
-                            title="Delete assignment"
+                            title="Delete post"
                             className="p-2 text-gray-300 hover:bg-red-600 hover:text-white transition-all"
                         >
                             <Trash2 size={13} />

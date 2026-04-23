@@ -8,7 +8,7 @@ const { uploadToFirebase } = require('../utils/firebaseStorage');
 // @route   POST /api/posts
 // @access  Private/Admin
 exports.createPost = async (req, res) => {
-    const { title, description, assignedUsers } = req.body;
+    const { title, description, platforms, regions } = req.body;
 
     try {
         // Build media array from uploaded files (Firebase Storage)
@@ -29,19 +29,20 @@ exports.createPost = async (req, res) => {
             media,
             mediaUrl: firstMedia.url || '',
             mediaType: firstMedia.type || 'image',
-            assignedUsers: JSON.parse(assignedUsers || '[]'),
+            platforms: platforms ? JSON.parse(platforms) : [],
+            regions: regions ? JSON.parse(regions) : [],
             createdBy: req.user._id
         });
 
-        // Email assigned users
-        const users = await User.find({ _id: { $in: post.assignedUsers } });
+        // Email all approved users
+        const users = await User.find({ status: 'approved', role: 'user' });
         for (const user of users) {
             try {
                 const loginUrl = 'http://localhost:5173/login';
                 await sendEmail({
                     email: user.email,
-                    subject: 'New Assignment - HO SOCIAL',
-                    message: `Hello ${user.name},\n\nYou have been assigned to a new post "${post.title}". Login here: ${loginUrl}`,
+                    subject: 'New Design Briefing - HO SOCIAL',
+                    message: `Hello ${user.name},\n\nA new design briefing "${post.title}" has been published. Login here: ${loginUrl}`,
                     html: `
                             <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 40px; background: #fff; border: 1px solid #eee;">
                                 <h1 style="font-size: 40px; font-weight: 900; letter-spacing: -2px; text-transform: uppercase; font-style: italic; margin: 0 0 20px;">
@@ -49,15 +50,15 @@ exports.createPost = async (req, res) => {
                                 </h1>
                                 <p style="text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 2px; color: #999; margin-bottom: 40px;">Content Management Platform</p>
                                 
-                                <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px;">New Assignment Ready.</h2>
+                                <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px;">New Design Briefing Ready.</h2>
                                 <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 30px;">
                                     Hello <strong>${user.name}</strong>,<br><br>
-                                    You have been assigned to a new production briefing: <br>
+                                    A new design briefing is ready for review: <br>
                                     <span style="font-style: italic; background: #f4f4f4; padding: 5px 10px; border-left: 4px solid #000; display: inline-block; margin-top: 10px;">"${post.title}"</span>
                                 </p>
                                 
                                 <a href="${loginUrl}" style="display: inline-block; background: #ff3e3e; color: #fff; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #000;">
-                                    View Assignment
+                                    View Post
                                 </a>
                                 
                                 <p style="margin-top: 50px; font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">
@@ -84,7 +85,6 @@ exports.getUserPosts = async (req, res) => {
     try {
         const Comment = require('../models/Comment');
         const posts = await Post.find({
-            assignedUsers: req.user._id,
             isDeleted: { $ne: true }
         })
             .populate('createdBy', 'name')
@@ -103,13 +103,12 @@ exports.getUserPosts = async (req, res) => {
     }
 };
 
-// @desc    Get user's archived assignments
-// @route   GET /api/posts/user/archived
+// @desc    Get user's archived posts
+// @route   GET /api/posts/archived
 // @access  Private
 exports.getUserArchivedPosts = async (req, res) => {
     try {
         const posts = await Post.find({
-            assignedUsers: req.user._id,
             isDeleted: { $ne: true },
             archivedBy: req.user._id
         })
@@ -184,9 +183,8 @@ exports.getPostById = async (req, res) => {
         if (post.isDeleted) return res.status(404).json({ message: 'Post not found' });
 
         const isAdmin = req.user.role === 'admin';
-        const isAssigned = post.assignedUsers.some(u => u._id.toString() === req.user._id.toString());
-
-        if (!isAdmin && !isAssigned) {
+        // Any approved user can view any post
+        if (!isAdmin && req.user.status !== 'approved') {
             return res.status(403).json({ message: 'Not authorized to view this post' });
         }
 
@@ -213,7 +211,7 @@ exports.getPostById = async (req, res) => {
     }
 };
 
-// @desc    Archive an assignment (per-user or admin)
+// @desc    Archive a post (per-user or admin)
 // @route   PATCH /api/posts/:id/archive
 // @access  Private
 exports.archivePost = async (req, res) => {
@@ -223,9 +221,9 @@ exports.archivePost = async (req, res) => {
 
         const userId = req.user._id.toString();
         const isAdmin = req.user.role === 'admin';
-        const isAssigned = post.assignedUsers.some(u => u.toString() === userId);
+        const isApproved = req.user.status === 'approved';
 
-        if (!isAdmin && !isAssigned) {
+        if (!isAdmin && !isApproved) {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
@@ -235,13 +233,13 @@ exports.archivePost = async (req, res) => {
             await post.save();
         }
 
-        res.json({ message: 'Assignment archived' });
+        res.json({ message: 'Post archived' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-// @desc    Unarchive an assignment (per-user or admin)
+// @desc    Unarchive a post (per-user or admin)
 // @route   PATCH /api/posts/:id/unarchive
 // @access  Private
 exports.unarchivePost = async (req, res) => {
@@ -251,16 +249,16 @@ exports.unarchivePost = async (req, res) => {
 
         const userId = req.user._id.toString();
         const isAdmin = req.user.role === 'admin';
-        const isAssigned = post.assignedUsers.some(u => u.toString() === userId);
+        const isApproved = req.user.status === 'approved';
 
-        if (!isAdmin && !isAssigned) {
+        if (!isAdmin && !isApproved) {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
         post.archivedBy = post.archivedBy.filter(id => id.toString() !== userId);
         await post.save();
 
-        res.json({ message: 'Assignment unarchived' });
+        res.json({ message: 'Post unarchived' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -271,61 +269,21 @@ exports.unarchivePost = async (req, res) => {
 // @access  Private/Admin
 exports.updatePost = async (req, res) => {
     try {
-        const { title, description, assignedUsers } = req.body;
+        const { title, description, platforms, regions } = req.body;
         const post = await Post.findById(req.params.id);
 
         if (!post) return res.status(404).json({ message: 'Post not found' });
 
-        const oldAssigned = post.assignedUsers.map(id => id.toString());
-        const newAssigned = JSON.parse(assignedUsers || '[]');
-
         post.title = title || post.title;
         post.description = description || post.description;
-        post.assignedUsers = newAssigned;
+        if (platforms) post.platforms = JSON.parse(platforms);
+        if (regions) post.regions = JSON.parse(regions);
 
         await post.save();
 
-        // Find newly added users to notify them
-        const newlyAdded = newAssigned.filter(id => !oldAssigned.includes(id.toString()));
-
-        if (newlyAdded.length > 0) {
-            const users = await User.find({ _id: { $in: newlyAdded } });
-            for (const user of users) {
-                try {
-                    const loginUrl = 'http://localhost:5173/login';
-                    await sendEmail({
-                        email: user.email,
-                        subject: 'Updated Assignment - HO SOCIAL',
-                        message: `Hello ${user.name},\n\nYou have been assigned to an updated post "${post.title}". Login here: ${loginUrl}`,
-                        html: `
-                            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 10px solid #000; padding: 40px; background: #fff;">
-                                <h1 style="font-size: 40px; font-weight: 900; letter-spacing: -2px; text-transform: uppercase; font-style: italic; margin: 0 0 20px;">
-                                    HO <span style="color: #ff3e3e;">SOCIAL.</span>
-                                </h1>
-                                <p style="text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 2px; color: #999; margin-bottom: 40px;">Content Management Platform</p>
-                                
-                                <h2 style="font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px;">Assignment Updated.</h2>
-                                <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 30px;">
-                                    Hello <strong>${user.name}</strong>,<br><br>
-                                    Changes have been made to your assignment: <br>
-                                    <span style="font-style: italic; background: #f4f4f4; padding: 5px 10px; border-left: 4px solid #000; display: inline-block; margin-top: 10px;">"${post.title}"</span>
-                                </p>
-                                
-                                <a href="${loginUrl}" style="display: inline-block; background: #ff3e3e; color: #fff; text-decoration: none; padding: 20px 40px; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border: 2px solid #000; box-shadow: 6px 6px 0px #000;">
-                                    View Update
-                                </a>
-                                
-                                <p style="margin-top: 50px; font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">
-                                    This is an automated system notification. Please do not reply directly to this email.
-                                </p>
-                            </div>
-                        `
-                    });
-                } catch (err) {
-                    console.error(`Email failed for ${user.email}:`, err.message);
-                }
-            }
-        }
+        // Optional: Notify everyone on update? User didn't specify for updates, but usually it's helpful.
+        // For now, let's just save.
+        // If the user wants update emails too, I would repeat the createPost logic here.
 
         res.json(post);
     } catch (error) {
@@ -344,13 +302,13 @@ exports.deletePost = async (req, res) => {
         post.isDeleted = true;
         await post.save();
 
-        res.json({ message: 'Assignment deleted' });
+        res.json({ message: 'Post deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-// @desc    Get 3 assignments with the most recent replies
+// @desc    Get 3 posts with the most recent replies
 // @route   GET /api/posts/admin/recent-activity
 // @access  Private/Admin
 exports.getRecentActivity = async (req, res) => {

@@ -38,14 +38,14 @@ exports.getComments = async (req, res) => {
 
 const mongoose = require('mongoose');
 
-// @desc    Get admin notifications (grouped by assignment)
+// @desc    Get admin notifications (grouped by post)
 // @route   GET /api/comments/admin/notifications
 // @access  Private/Admin
 exports.getAdminNotifications = async (req, res) => {
     try {
         const adminId = req.user._id;
 
-        // Use aggregation to group unread comments by assignment
+        // Use aggregation to group unread comments by post
         const notifications = await Comment.aggregate([
             {
                 $match: {
@@ -64,11 +64,11 @@ exports.getAdminNotifications = async (req, res) => {
                 }
             },
             { $sort: { lastDate: -1 } },
-            { $limit: 10 } // Get latest 10 assignments with unread activity
+            { $limit: 10 } // Get latest 10 posts with unread activity
         ]);
 
-        // Total count will be the number of unique assignments with unread comments
-        const totalUniqueAssignments = await Comment.distinct('postId', {
+        // Total count will be the number of unique posts with unread comments
+        const totalUniquePosts = await Comment.distinct('postId', {
             readByAdmin: false,
             userId: { $ne: adminId }
         });
@@ -86,7 +86,7 @@ exports.getAdminNotifications = async (req, res) => {
             return {
                 _id: n._id,
                 postId: n._id,
-                postTitle: post?.title || 'Unknown Assignment',
+                postTitle: post?.title || 'Unknown Post',
                 userName: user?.name || 'Team Member',
                 comment: n.lastComment,
                 createdAt: n.lastDate,
@@ -95,7 +95,7 @@ exports.getAdminNotifications = async (req, res) => {
         }));
 
         res.json({
-            unreadCount: totalUniqueAssignments.length,
+            unreadCount: totalUniquePosts.length,
             latestComments: result
         });
     } catch (error) {
@@ -110,9 +110,8 @@ exports.getUserNotifications = async (req, res) => {
         const userId = new mongoose.Types.ObjectId(req.user._id);
         const Post = mongoose.model('Post');
 
-        // 1. Find new assignments (assigned to user but not viewed yet)
-        const newAssignments = await Post.find({
-            assignedUsers: { $in: [userId, req.user._id] },
+        // 1. Find new posts (not viewed by user yet)
+        const newPosts = await Post.find({
             viewedBy: { $nin: [userId, req.user._id] },
             isDeleted: { $ne: true }
         }).select('title createdBy createdAt').populate('createdBy', 'name');
@@ -138,16 +137,8 @@ exports.getUserNotifications = async (req, res) => {
             }
         ]);
 
-        // Filter unread comments to only include those in assignments the user is assigned to
-        const userPostIds = await Post.find({
-            assignedUsers: { $in: [userId, req.user._id] }
-        }).distinct('_id');
-        const userPostIdStrings = userPostIds.map(id => id.toString());
-
-        const filteredComments = unreadComments.filter(c => {
-            const pid = c._id ? c._id.toString() : '';
-            return userPostIdStrings.includes(pid);
-        });
+        // No longer filtering by assignedUsers as all posts are global
+        const filteredComments = unreadComments;
 
         // Hydrate comments with Post and User info
         const commentNotes = await Promise.all(filteredComments.map(async (n) => {
@@ -159,7 +150,7 @@ exports.getUserNotifications = async (req, res) => {
                 _id: n._id,
                 postId: n._id,
                 type: 'reply',
-                postTitle: post?.title || 'Unknown Assignment',
+                postTitle: post?.title || 'Unknown Post',
                 userName: lastUser?.name || 'Admin',
                 comment: n.lastComment,
                 createdAt: n.lastDate,
@@ -167,25 +158,25 @@ exports.getUserNotifications = async (req, res) => {
             };
         }));
 
-        // Convert new assignments to same format
-        const assignmentNotes = newAssignments.map(a => ({
+        // Convert new posts to same format
+        const postNotes = newPosts.map(a => ({
             _id: a._id,
             postId: a._id,
-            type: 'new_assignment',
+            type: 'new_assignment', // Keep type internal for now, but change message
             postTitle: a.title,
             userName: a.createdBy?.name || 'Admin',
-            comment: 'New assignment created for you',
+            comment: 'New post published',
             createdAt: a.createdAt,
             count: 1
         }));
 
         // Combine and sort
-        const allNotifications = [...assignmentNotes, ...commentNotes]
+        const allNotifications = [...postNotes, ...commentNotes]
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
             .slice(0, 10);
 
-        // Unique assignment count for the badge
-        const uniqueNotePostIds = [...new Set([...assignmentNotes, ...commentNotes].map(n => n._id.toString()))];
+        // Unique post count for the badge
+        const uniqueNotePostIds = [...new Set([...postNotes, ...commentNotes].map(n => n._id.toString()))];
 
         res.json({
             unreadCount: uniqueNotePostIds.length,

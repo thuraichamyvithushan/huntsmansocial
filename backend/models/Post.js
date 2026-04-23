@@ -36,6 +36,14 @@ const postSchema = new mongoose.Schema({
         ref: 'User',
         default: []
     }],
+    platforms: [{
+        type: String,
+        enum: ['Facebook', 'Instagram']
+    }],
+    regions: [{
+        type: String,
+        enum: ['Australia', 'New Zealand']
+    }],
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

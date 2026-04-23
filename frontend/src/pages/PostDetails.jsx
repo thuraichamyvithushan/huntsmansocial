@@ -7,6 +7,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import CommentSection from '../components/CommentSection';
 
+const FacebookIcon = ({ size = 16 }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+);
+
+const InstagramIcon = ({ size = 16 }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+);
+
 const PostDetails = () => {
     const { id } = useParams();
     const { user } = useAuth();
@@ -78,6 +86,22 @@ const PostDetails = () => {
                         <span>Return to Feed</span>
                     </Link>
                     <h1 className="text-2xl md:text-5xl font-black text-black tracking-tighter uppercase italic leading-tight">{post.title}</h1>
+                    
+                    {/* Badges */}
+                    {(post.platforms?.length > 0 || post.regions?.length > 0) && (
+                        <div className="flex flex-wrap gap-3 mt-6">
+                            {post.platforms?.map(p => (
+                                <div key={p} className={`p-2 border-2 border-black shadow-[4px_4px_0px_#000] flex items-center justify-center ${p === 'Facebook' ? 'bg-[#1877F2] text-white' : 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white'}`} title={p}>
+                                    {p === 'Facebook' ? <FacebookIcon /> : <InstagramIcon />}
+                                </div>
+                            ))}
+                            {post.regions?.map(r => (
+                                <span key={r} className="text-[9px] md:text-[11px] font-black uppercase px-3 py-1.5 bg-black text-white border-2 border-black shadow-[4px_4px_0px_#ff3e3e]">
+                                    {r}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <div className="flex flex-wrap items-center gap-4 md:justify-end">
                     <button 
@@ -233,7 +257,7 @@ const PostDetails = () => {
                             <div className="h-1.5 w-16 bg-primary-600"></div>
                             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">BRIEFING DETAILS</span>
                         </div>
-                        <p className="text-base md:text-xl font-medium text-gray-700 leading-relaxed italic">
+                        <p className="text-base md:text-xl font-medium text-gray-700 leading-relaxed italic whitespace-pre-wrap">
                             {post.description}
                         </p>
                     </div>
