@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, PlusSquare, FileText, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, PlusSquare, FileText, LogOut, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/logo.png';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const { user, logout } = useAuth();
     const isAdmin = user?.role === 'admin';
+    const coastCanopiesSocialUrl = 'https://coastcanopiessocial.vercel.app/admin-dashboard';
 
     const navItems = isAdmin ? [
         { name: 'Overview', path: '/admin-dashboard', icon: LayoutDashboard },
@@ -67,6 +68,21 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                 </span>
                             </NavLink>
                         ))}
+
+                        {isAdmin && (
+                            <a
+                                href={coastCanopiesSocialUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="sidebar-link"
+                                title={!isOpen ? 'Manage Coastcanopies Social' : ''}
+                            >
+                                <ExternalLink size={20} className="shrink-0" />
+                                <span className={`font-bold text-xs uppercase tracking-widest transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
+                                    Manage Coastcanopies Social
+                                </span>
+                            </a>
+                        )}
                     </nav>
 
                     {/* User Footer */}
