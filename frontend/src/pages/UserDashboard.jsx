@@ -99,6 +99,12 @@ const UserDashboard = () => {
         }
     };
 
+    const handleMarkPostRead = (postId) => {
+        setPosts(prev => prev.map(post => (
+            post._id === postId ? { ...post, isNew: false } : post
+        )));
+    };
+
     const filters = [
         { key: 'all', label: 'All Content' },
         { key: 'Facebook', label: 'Facebook' },
@@ -106,6 +112,18 @@ const UserDashboard = () => {
         { key: 'Australia', label: 'Australia' },
         { key: 'New Zealand', label: 'New Zealand' },
     ];
+
+    const sortedPosts = [...filteredPosts].sort((a, b) => {
+        if (Boolean(a.isNew) !== Boolean(b.isNew)) {
+            return a.isNew ? -1 : 1;
+        }
+
+        const dateA = a.eventDate ? new Date(a.eventDate) : new Date(a.createdAt);
+        const dateB = b.eventDate ? new Date(b.eventDate) : new Date(b.createdAt);
+        return dateB - dateA;
+    });
+
+    const displayedPosts = sortedPosts.slice(0, currentPage * ITEMS_PER_PAGE);
 
     return (
         <div className="min-h-screen pb-20 -m-4 md:-m-10 p-4 md:p-10">
@@ -185,64 +203,36 @@ const UserDashboard = () => {
                             </div>
                         ) : (
                             <>
-                                {(() => {
-                                    // Sort posts by eventDate descending (newest first)
-                                    // Fallback to createdAt if eventDate is missing
-                                    const sorted = [...filteredPosts].sort((a, b) => {
-                                        const dateA = a.eventDate ? new Date(a.eventDate) : new Date(a.createdAt);
-                                        const dateB = b.eventDate ? new Date(b.eventDate) : new Date(b.createdAt);
-                                        return dateB - dateA;
-                                    });
-
-                                    const displayedPosts = sorted.slice(0, currentPage * ITEMS_PER_PAGE);
-                                    
-                                    // Group by date
-                                    const grouped = displayedPosts.reduce((acc, post) => {
-                                        const dateStr = post.eventDate 
-                                            ? new Date(post.eventDate).toLocaleDateString('en-GB', { 
-                                                weekday: 'long', 
-                                                day: 'numeric', 
-                                                month: 'long',
-                                                year: 'numeric'
-                                            })
-                                            : 'UNSCHEDULED';
-                                        
-                                        if (acc.length > 0 && acc[acc.length - 1].date === dateStr) {
-                                            acc[acc.length - 1].posts.push(post);
-                                        } else {
-                                            acc.push({ date: dateStr, posts: [post] });
-                                        }
-                                        return acc;
-                                    }, []);
-
-                                    return grouped.map((group) => (
-                                        <div key={group.date} className="space-y-6">
-                                            <div className="flex items-center gap-4 py-2 sticky top-[-1px] z-30 bg-white/95 backdrop-blur-sm border-b-2 border-black">
-                                                <div className="bg-black text-white px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] italic shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
-                                                    {group.date}
-                                                </div>
-                                                <div className="flex-1 h-[1px] bg-black/5" />
-                                                <div className="text-[8px] font-black text-black/30 uppercase tracking-widest">
-                                                    {group.posts.length} {group.posts.length === 1 ? 'Design' : 'Designs'}
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                                {group.posts.map((post, pIndex) => (
-                                                    <PostItem
-                                                        key={post._id}
-                                                        post={post}
-                                                        index={pIndex}
-                                                        currentUser={currentUser}
-                                                        onLike={handleLike}
-                                                    />
-                                                ))}
-                                            </div>
+                                <div className="border-2 border-black bg-white/60 backdrop-blur-sm p-4 md:p-6 shadow-[8px_8px_0px_rgba(0,0,0,0.15)] space-y-6">
+                                    <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-black pb-4">
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary-600">
+                                                Feed Order
+                                            </p>
+                                            <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight italic text-black">
+                                                New Posts First, Then Recent Posts
+                                            </h2>
                                         </div>
-                                    ));
-                                })()}
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-black/60">
+                                            {displayedPosts.length} of {sortedPosts.length} posts
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                        {displayedPosts.map((post, index) => (
+                                            <PostItem
+                                                key={post._id}
+                                                post={post}
+                                                index={index}
+                                                currentUser={currentUser}
+                                                onLike={handleLike}
+                                                onMarkAsRead={handleMarkPostRead}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
                                 
-                                {filteredPosts.length > currentPage * ITEMS_PER_PAGE && (
+                                {sortedPosts.length > currentPage * ITEMS_PER_PAGE && (
                                     <button
                                         onClick={() => setCurrentPage(prev => prev + 1)}
                                         className="w-full py-6 border-2 border-black bg-white font-black uppercase tracking-[0.3em] text-[10px] hover:bg-black hover:text-white transition-all shadow-[8px_8px_0px_#000] active:shadow-none active:translate-x-1 active:translate-y-1"
@@ -262,16 +252,19 @@ const UserDashboard = () => {
 /* ── PostItem ────────────────────────────────────────────────── */
 import { useNavigate } from 'react-router-dom';
 
-const PostItem = ({ post, index, currentUser, onLike }) => {
+const PostItem = ({ post, index, currentUser, onLike, onMarkAsRead }) => {
     const navigate = useNavigate();
     const [isLocalNew, setIsLocalNew] = useState(post.isNew);
     const [isExpanded, setIsExpanded] = useState(false);
+    const description = post.description || '';
+    const hasLongDescription = description.length > 150;
 
     const markAsRead = async () => {
         if (!isLocalNew) return;
         try {
             await api.put('/notifications/read', { id: post._id, type: 'new_assignment' });
             setIsLocalNew(false);
+            onMarkAsRead?.(post._id);
         } catch (err) {
             console.error('Failed to mark as read');
         }
@@ -349,16 +342,16 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                         {post.title}
                     </h3>
                     <p className="text-xs text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">
-                        {isExpanded ? post.description : (post.description.length > 150 ? post.description.substring(0, 150) + '...' : post.description)}
-                        {post.description.length > 150 && !isExpanded && (
+                        {isExpanded ? description : (hasLongDescription ? description.substring(0, 150) + '...' : description)}
+                        {hasLongDescription && (
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    setIsExpanded(true);
+                                    setIsExpanded(prev => !prev);
                                 }}
                                 className="text-primary-600 font-black ml-1 hover:underline uppercase text-[10px]"
                             >
-                                Read More
+                                {isExpanded ? 'Read Less' : 'Read More'}
                             </button>
                         )}
                     </p>
