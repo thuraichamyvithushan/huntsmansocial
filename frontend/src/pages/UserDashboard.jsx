@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PlayCircle, Heart, MessageSquare, Clock, User as UserIcon, Maximize2, X } from 'lucide-react';
+import { PlayCircle, Heart, MessageSquare, Clock, User as UserIcon } from 'lucide-react';
 import api from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -20,39 +20,39 @@ const UserDashboard = () => {
     const [filter, setFilter] = useState('all');
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 5;
+    const ITEMS_PER_PAGE = 6;
 
-    const [dateFilter, setDateFilter] = useState('all'); 
-const [selectedDate, setSelectedDate] = useState('');
+    const [dateFilter, setDateFilter] = useState('all');
+    const [selectedDate, setSelectedDate] = useState('');
 
     const today = new Date();
-today.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
 
-const filteredPosts = posts.filter(post => {
-    // existing filters
-    if (filter === 'Instagram' && !post.platforms?.includes('Instagram')) return false;
-    if (filter === 'Facebook' && !post.platforms?.includes('Facebook')) return false;
-    if (filter === 'New Zealand' && !post.regions?.includes('New Zealand')) return false;
-    if (filter === 'Australia' && !post.regions?.includes('Australia')) return false;
+    const filteredPosts = posts.filter(post => {
+        // existing filters
+        if (filter === 'Instagram' && !post.platforms?.includes('Instagram')) return false;
+        if (filter === 'Facebook' && !post.platforms?.includes('Facebook')) return false;
+        if (filter === 'New Zealand' && !post.regions?.includes('New Zealand')) return false;
+        if (filter === 'Australia' && !post.regions?.includes('Australia')) return false;
 
-    // date filtering
-    if (!post.eventDate) return dateFilter === 'all';
+        // date filtering
+        if (!post.eventDate) return dateFilter === 'all';
 
-    const eventDate = new Date(post.eventDate);
-    eventDate.setHours(0, 0, 0, 0);
+        const eventDate = new Date(post.eventDate);
+        eventDate.setHours(0, 0, 0, 0);
 
-    if (dateFilter === 'upcoming') return eventDate >= today;
-    if (dateFilter === 'past') return eventDate < today;
-    if (dateFilter === 'today') return eventDate.getTime() === today.getTime();
+        if (dateFilter === 'upcoming') return eventDate >= today;
+        if (dateFilter === 'past') return eventDate < today;
+        if (dateFilter === 'today') return eventDate.getTime() === today.getTime();
 
-    if (dateFilter === 'custom' && selectedDate) {
-        const selected = new Date(selectedDate);
-        selected.setHours(0, 0, 0, 0);
-        return eventDate.getTime() === selected.getTime();
-    }
+        if (dateFilter === 'custom' && selectedDate) {
+            const selected = new Date(selectedDate);
+            selected.setHours(0, 0, 0, 0);
+            return eventDate.getTime() === selected.getTime();
+        }
 
-    return true;
-});
+        return true;
+    });
 
     // const fetchPosts = useCallback(async () => {
     //     try {
@@ -67,24 +67,24 @@ const filteredPosts = posts.filter(post => {
     // }, []);
 
     const fetchPosts = useCallback(async () => {
-    try {
-        setLoading(true);
-        const res = await api.get('/posts/user');
-        setPosts(Array.isArray(res.data) ? res.data : []);
-    } catch (error) {
-        console.error('Failed to fetch posts:', error);
-        
-        if (error.response?.status === 401) {
-            toast.error("Please make sure you're logged in as admin or backend allows public access");
-        } else {
-            toast.error('Failed to load posts. Is the backend running?');
+        try {
+            setLoading(true);
+            const res = await api.get('/posts/user');
+            setPosts(Array.isArray(res.data) ? res.data : []);
+        } catch (error) {
+            console.error('Failed to fetch posts:', error);
+
+            if (error.response?.status === 401) {
+                toast.error("Please make sure you're logged in as admin or backend allows public access");
+            } else {
+                toast.error('Failed to load posts. Is the backend running?');
+            }
+
+            setPosts([]); // Important: prevent UI from breaking
+        } finally {
+            setLoading(false);
         }
-        
-        setPosts([]);        // Important: prevent UI from breaking
-    } finally {
-        setLoading(false);
-    }
-}, []);
+    }, []);
 
     useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
@@ -109,7 +109,7 @@ const filteredPosts = posts.filter(post => {
 
     return (
         <div className="min-h-screen pb-20 -m-4 md:-m-10 p-4 md:p-10">
-            <div className="max-w-2xl mx-auto space-y-6">
+            <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="border-b-4 border-black pb-6 mb-4 backdrop-blur-sm">
                     <h1 className="text-3xl md:text-5xl font-black text-black tracking-tighter uppercase italic drop-shadow-sm">
@@ -134,33 +134,33 @@ const filteredPosts = posts.filter(post => {
                 </div>
 
                 <div className="flex flex-wrap gap-2 items-center pb-4">
-    <select
-        value={dateFilter}
-        onChange={(e) => setDateFilter(e.target.value)}
-        className="border-2 border-black px-3 py-2 text-xs font-bold"
-    >
-        <option value="all">All Dates</option>
-        <option value="today">Today</option>
-        <option value="upcoming">Upcoming</option>
-        <option value="past">Past</option>
-        <option value="custom">Pick Date</option>
-    </select>
+                    <select
+                        value={dateFilter}
+                        onChange={(e) => setDateFilter(e.target.value)}
+                        className="border-2 border-black px-3 py-2 text-xs font-bold"
+                    >
+                        <option value="all">All Dates</option>
+                        <option value="today">Today</option>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="past">Past</option>
+                        <option value="custom">Pick Date</option>
+                    </select>
 
-    {dateFilter === 'custom' && (
-        <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="border-2 border-black px-3 py-2 text-xs font-bold"
-        />
-    )}
-</div>
+                    {dateFilter === 'custom' && (
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="border-2 border-black px-3 py-2 text-xs font-bold"
+                        />
+                    )}
+                </div>
 
                 {/* Content Feed */}
                 {loading ? (
-                    <div className="space-y-8">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="bg-white border-2 border-black p-6 space-y-4 animate-pulse">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} className="bg-white border-2 border-black p-6 space-y-4 animate-pulse shadow-[8px_8px_0px_rgba(0,0,0,0.25)]">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-gray-200 rounded-full" />
                                     <div className="space-y-2">
@@ -177,7 +177,7 @@ const filteredPosts = posts.filter(post => {
                         ))}
                     </div>
                 ) : (
-                    <div className="space-y-12">
+                    <div className="space-y-10">
                         {filteredPosts.length === 0 ? (
                             <div className="p-16 text-center border-2 border-black border-dashed backdrop-blur-sm bg-white/20">
                                 <Clock size={40} className="mx-auto mb-4 text-black" />
@@ -215,9 +215,9 @@ const filteredPosts = posts.filter(post => {
                                         return acc;
                                     }, []);
 
-                                    return grouped.map((group, gIndex) => (
+                                    return grouped.map((group) => (
                                         <div key={group.date} className="space-y-6">
-                                            <div className="flex items-center gap-4 py-2 sticky top-[-1px] z-30 bg-white/95 backdrop-blur-sm border-b-2 border-black -mx-4 px-4 md:-mx-10 md:px-10">
+                                            <div className="flex items-center gap-4 py-2 sticky top-[-1px] z-30 bg-white/95 backdrop-blur-sm border-b-2 border-black">
                                                 <div className="bg-black text-white px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] italic shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
                                                     {group.date}
                                                 </div>
@@ -227,7 +227,7 @@ const filteredPosts = posts.filter(post => {
                                                 </div>
                                             </div>
                                             
-                                            <div className="space-y-10">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                                 {group.posts.map((post, pIndex) => (
                                                     <PostItem
                                                         key={post._id}
@@ -296,7 +296,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="relative backdrop-blur-md bg-white/70 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.7)] overflow-hidden transition-all"
+            className="relative flex h-full flex-col backdrop-blur-md bg-white/70 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,0.7)] overflow-hidden transition-all"
         >
             {/* New Post Badge */}
             {isLocalNew && (
@@ -343,9 +343,9 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
             </div>
 
             {/* Post Content */}
-            <div className="p-4 md:p-6 space-y-4">
+            <div className="flex flex-1 flex-col p-4 md:p-6 space-y-4">
                 <div className="space-y-2 cursor-pointer" onClick={handleNavigate}>
-                    <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none italic hover:text-primary-600 transition-colors">
+                    <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter leading-none italic hover:text-primary-600 transition-colors">
                         {post.title}
                     </h3>
                     <p className="text-xs text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">
@@ -374,14 +374,14 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                 {/* Media Container */}
                 {firstMedia.url && (
                     <div 
-                        className="relative bg-black border-2 border-black group cursor-pointer overflow-hidden"
+                        className="relative bg-black border-2 border-black group cursor-pointer overflow-hidden aspect-[4/5]"
                         onClick={handleNavigate}
                     >
                         {firstMedia.type === 'video' ? (
-                            <div className="w-full flex items-center justify-center">
+                            <div className="w-full h-full flex items-center justify-center">
                                 <video 
                                     src={firstMedia.url?.startsWith('http') ? firstMedia.url : `http://localhost:5000${firstMedia.url}`}
-                                    className="w-full h-auto"
+                                    className="w-full h-full object-cover"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
                                     <PlayCircle size={48} className="text-white opacity-80 group-hover:scale-110 transition-transform" />
@@ -391,7 +391,7 @@ const PostItem = ({ post, index, currentUser, onLike }) => {
                             <img
                                 src={firstMedia.url?.startsWith('http') ? firstMedia.url : `http://localhost:5000${firstMedia.url}`}
                                 alt={post.title}
-                                className="w-full h-auto group-hover:scale-105 transition-transform duration-700 block"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 block"
                             />
                         )}
                         

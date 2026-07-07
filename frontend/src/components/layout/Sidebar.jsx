@@ -7,7 +7,10 @@ import logo from '../../assets/logo.png';
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const { user, logout } = useAuth();
     const isAdmin = user?.role === 'admin';
-    const coastCanopiesSocialUrl = 'https://coastcanopiessocial.vercel.app/admin-dashboard';
+    const coastCanopiesSocialUrl = isAdmin
+        ? 'https://coastcanopiessocial.vercel.app/admin-dashboard'
+        : 'https://coastcanopiessocial.vercel.app/dashboard';
+    const coastCanopiesSocialLabel = 'Manage Coastcanopies Social';
 
     const navItems = isAdmin ? [
         { name: 'Overview', path: '/admin-dashboard', icon: LayoutDashboard },
@@ -69,20 +72,18 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                             </NavLink>
                         ))}
 
-                        {isAdmin && (
-                            <a
-                                href={coastCanopiesSocialUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="sidebar-link"
-                                title={!isOpen ? 'Manage Coastcanopies Social' : ''}
-                            >
-                                <ExternalLink size={20} className="shrink-0" />
-                                <span className={`font-bold text-xs uppercase tracking-widest transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
-                                    Manage Coastcanopies Social
-                                </span>
-                            </a>
-                        )}
+                        <a
+                            href={coastCanopiesSocialUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="sidebar-link"
+                            title={!isOpen ? coastCanopiesSocialLabel : ''}
+                        >
+                            <ExternalLink size={20} className="shrink-0" />
+                            <span className={`font-bold text-xs uppercase tracking-widest transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
+                                {coastCanopiesSocialLabel}
+                            </span>
+                        </a>
                     </nav>
 
                     {/* User Footer */}
