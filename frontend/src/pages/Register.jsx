@@ -30,7 +30,7 @@ const Register = () => {
             
             // 3. Sync with our MongoDB backend
             const idToken = await userCredential.user.getIdToken();
-            await api.post('/auth/firebase', { idToken });
+            await api.post('/auth/firebase', { idToken, intent: 'register' });
 
             setIsSuccess(true);
             toast.success('Registration successful!');

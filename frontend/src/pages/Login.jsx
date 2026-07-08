@@ -29,7 +29,7 @@ const Login = () => {
             // 2. Send token to our backend to get app-specific user data (role, status, etc)
             // 2. Send token to our backend to get app-specific user data (role, status, etc)
             console.log('Sending token to backend...');
-            const { data } = await api.post('/auth/firebase', { idToken });
+            const { data } = await api.post('/auth/firebase', { idToken, intent: 'login' });
             console.log('Backend response received:', data);
             
             if (!data.role) {

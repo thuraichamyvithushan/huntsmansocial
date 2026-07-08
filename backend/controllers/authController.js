@@ -235,7 +235,7 @@ exports.resetPassword = async (req, res) => {
 // @route   POST /api/auth/firebase
 // @access  Public
 exports.firebaseAuth = async (req, res) => {
-    const { idToken } = req.body;
+    const { idToken, intent = 'login' } = req.body;
 
     if (!idToken) {
         return res.status(400).json({ message: 'Firebase ID token is required' });
@@ -274,13 +274,13 @@ exports.firebaseAuth = async (req, res) => {
                     name: name || email.split('@')[0],
                     email: email,
                     firebaseUid: uid,
-                    status: 'approved' // Automatically approve Firebase users
+                    status: 'pending'
                 });
 
                 // Create notification for admin
                 await Notification.create({
                     type: 'registration',
-                    message: `New automatic approval for ${user.name} (${email}).`,
+                    message: `New portal access request from ${user.name} (${email}).`,
                     userId: user._id
                 });
                 console.log(`User ${email} created successfully.`);
@@ -290,13 +290,41 @@ exports.firebaseAuth = async (req, res) => {
             }
         }
 
-        // 4. Ensure existing user is also approved if they are logging in via Firebase
-        if (user.status === 'pending') {
-            user.status = 'approved';
-            await user.save();
+        // 4. Registration should succeed without a session while account is pending approval.
+        if (intent === 'register') {
+            return res.status(201).json({
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                status: user.status
+            });
         }
 
-        // 5. Generate our own JWT for the existing middleware compatibility
+        // 5. Block pending/rejected Firebase users the same way email/password login does.
+        if (user.status !== 'approved') {
+            await Notification.create({
+                type: 'login_attempt',
+                message: `Pending user ${user.name} (${user.email}) attempted to log in.`,
+                userId: user._id
+            });
+
+            if (process.env.ADMIN_NOTIFICATION_EMAIL) {
+                try {
+                    await sendEmail({
+                        email: process.env.ADMIN_NOTIFICATION_EMAIL,
+                        subject: 'ALERT: Pending User Login Attempt',
+                        message: `User ${user.name} (${user.email}) is trying to access the portal but their status is: ${user.status}.\n\nPlease review their account status.`
+                    });
+                } catch (err) {
+                    console.error('Admin notification email failed:', err.message);
+                }
+            }
+
+            return res.status(401).json({ message: 'Account pending admin approval' });
+        }
+
+        // 6. Generate our own JWT for the existing middleware compatibility
         res.json({
             _id: user._id,
             name: user.name,
