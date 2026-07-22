@@ -20,7 +20,7 @@ const UserDashboard = () => {
     const [filter, setFilter] = useState('all');
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 6;
+    const ITEMS_PER_PAGE = 12;
 
     const [dateFilter, setDateFilter] = useState('all');
     const [selectedDate, setSelectedDate] = useState('');
@@ -88,6 +88,10 @@ const UserDashboard = () => {
 
     useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter, dateFilter, selectedDate]);
+
     const handleLike = async (postId) => {
         try {
             const res = await api.patch(`/posts/${postId}/like`);
@@ -123,7 +127,11 @@ const UserDashboard = () => {
         return dateB - dateA;
     });
 
-    const displayedPosts = sortedPosts.slice(0, currentPage * ITEMS_PER_PAGE);
+    const totalPages = Math.max(1, Math.ceil(sortedPosts.length / ITEMS_PER_PAGE));
+    const displayedPosts = sortedPosts.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
 
     return (
         <div className="min-h-screen pb-20 -m-4 md:-m-10 p-4 md:p-10">
@@ -176,7 +184,7 @@ const UserDashboard = () => {
 
                 {/* Content Feed */}
                 {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {[1, 2, 3, 4, 5, 6].map(i => (
                             <div key={i} className="bg-white border-2 border-black p-6 space-y-4 animate-pulse shadow-[8px_8px_0px_rgba(0,0,0,0.25)]">
                                 <div className="flex items-center gap-3">
@@ -214,11 +222,11 @@ const UserDashboard = () => {
                                             </h2>
                                         </div>
                                         <p className="text-[10px] font-black uppercase tracking-widest text-black/60">
-                                            {displayedPosts.length} of {sortedPosts.length} posts
+                                            Page {currentPage} of {totalPages} - {sortedPosts.length} posts
                                         </p>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                                         {displayedPosts.map((post, index) => (
                                             <PostItem
                                                 key={post._id}
@@ -232,13 +240,41 @@ const UserDashboard = () => {
                                     </div>
                                 </div>
                                 
-                                {sortedPosts.length > currentPage * ITEMS_PER_PAGE && (
-                                    <button
-                                        onClick={() => setCurrentPage(prev => prev + 1)}
-                                        className="w-full py-6 border-2 border-black bg-white font-black uppercase tracking-[0.3em] text-[10px] hover:bg-black hover:text-white transition-all shadow-[8px_8px_0px_#000] active:shadow-none active:translate-x-1 active:translate-y-1"
-                                    >
-                                        Load More From History
-                                    </button>
+                                {totalPages > 1 && (
+                                    <div className="flex flex-wrap items-center justify-center gap-3">
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                            className="min-w-[110px] px-4 py-3 border-2 border-black bg-white font-black uppercase tracking-[0.2em] text-[10px] hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-black"
+                                        >
+                                            Previous
+                                        </button>
+
+                                        {Array.from({ length: totalPages }, (_, index) => {
+                                            const pageNumber = index + 1;
+                                            return (
+                                                <button
+                                                    key={pageNumber}
+                                                    onClick={() => setCurrentPage(pageNumber)}
+                                                    className={`w-11 h-11 border-2 border-black font-black text-xs transition-all shadow-[4px_4px_0px_#000] ${
+                                                        currentPage === pageNumber
+                                                            ? 'bg-black text-white'
+                                                            : 'bg-white text-black hover:bg-gray-100'
+                                                    }`}
+                                                >
+                                                    {pageNumber}
+                                                </button>
+                                            );
+                                        })}
+
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                            className="min-w-[110px] px-4 py-3 border-2 border-black bg-white font-black uppercase tracking-[0.2em] text-[10px] hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-black"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
                                 )}
                             </>
                         )}
@@ -338,7 +374,7 @@ const PostItem = ({ post, index, currentUser, onLike, onMarkAsRead }) => {
             {/* Post Content */}
             <div className="flex flex-1 flex-col p-4 md:p-6 space-y-4">
                 <div className="space-y-2 cursor-pointer" onClick={handleNavigate}>
-                    <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter leading-none italic hover:text-primary-600 transition-colors">
+                    <h3 className="text-base md:text-lg font-black uppercase tracking-tight leading-none italic hover:text-primary-600 transition-colors">
                         {post.title}
                     </h3>
                     <p className="text-xs text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">
