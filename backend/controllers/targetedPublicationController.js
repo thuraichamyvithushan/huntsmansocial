@@ -55,6 +55,26 @@ const parseTargetEmails = (body) => {
     return [];
 };
 
+const sendTargetedPublicationEmail = async ({ targetUser, text }) => {
+    await sendEmail({
+        email: targetUser.email,
+        subject: 'New Private Publication - HO SOCIAL',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 32px; border: 1px solid #e5e7eb; background: #ffffff;">
+                <h1 style="margin: 0 0 8px; font-size: 32px; font-weight: 900; text-transform: uppercase;">HO SOCIAL</h1>
+                <p style="margin: 0 0 24px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #6b7280;">Private admin publication</p>
+                <p style="font-size: 16px; line-height: 1.7; color: #111827;">
+                    Hello <strong>${targetUser.name}</strong>, a new private publication has been shared with you.
+                </p>
+                ${text ? `<div style="margin: 24px 0; padding: 16px; background: #f9fafb; border-left: 4px solid #111827; white-space: pre-wrap; color: #111827;">${text}</div>` : ''}
+                <a href="${buildFrontendUrl('/my-publications')}" style="display: inline-block; margin-top: 16px; padding: 14px 24px; background: #111827; color: #ffffff; text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                    View Publication
+                </a>
+            </div>
+        `
+    });
+};
+
 // @desc    Create targeted publications for one or more users
 // @route   POST /api/targeted-publications/admin
 // @access  Private/Admin
@@ -116,23 +136,7 @@ exports.createTargetedPublication = async (req, res) => {
             });
 
             try {
-                await sendEmail({
-                    email: targetUser.email,
-                    subject: 'New Private Publication - HO SOCIAL',
-                    html: `
-                        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 32px; border: 1px solid #e5e7eb; background: #ffffff;">
-                            <h1 style="margin: 0 0 8px; font-size: 32px; font-weight: 900; text-transform: uppercase;">HO SOCIAL</h1>
-                            <p style="margin: 0 0 24px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #6b7280;">Private admin publication</p>
-                            <p style="font-size: 16px; line-height: 1.7; color: #111827;">
-                                Hello <strong>${targetUser.name}</strong>, a new private publication has been shared with you.
-                            </p>
-                            ${text ? `<div style="margin: 24px 0; padding: 16px; background: #f9fafb; border-left: 4px solid #111827; white-space: pre-wrap; color: #111827;">${text}</div>` : ''}
-                            <a href="${buildFrontendUrl('/my-publications')}" style="display: inline-block; margin-top: 16px; padding: 14px 24px; background: #111827; color: #ffffff; text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                                View Publication
-                            </a>
-                        </div>
-                    `
-                });
+                await sendTargetedPublicationEmail({ targetUser, text });
             } catch (error) {
                 emailFailures += 1;
                 console.error(`Targeted publication email failed for ${targetUser.email}:`, error.message);
@@ -192,30 +196,97 @@ exports.updateTargetedPublicationGroup = async (req, res) => {
             return res.status(400).json({ message: 'Add text or an image before saving.' });
         }
 
+        const requestedTargetEmails = parseTargetEmails(req.body);
+        const normalizedTargetEmails = requestedTargetEmails.length > 0
+            ? [...new Set(requestedTargetEmails.map((email) => email.toLowerCase()).filter(Boolean))]
+            : [...new Set(publications.map((publication) => publication.targetEmail.toLowerCase()).filter(Boolean))];
+
+        if (normalizedTargetEmails.length === 0) {
+            return res.status(400).json({ message: 'Select at least one user email before saving.' });
+        }
+
+        const targetUsers = await User.find({
+            email: { $in: normalizedTargetEmails },
+            status: 'approved',
+            role: 'user'
+        }).select('name email');
+
+        if (targetUsers.length !== normalizedTargetEmails.length) {
+            return res.status(404).json({ message: 'One or more selected users were not found.' });
+        }
+
         let nextImageUrl = publications[0].imageUrl || '';
         if (req.file) {
             nextImageUrl = await uploadToFirebase(req.file);
         }
 
-        const publicationIds = publications.map((publication) => publication._id);
+        const existingPublicationsByEmail = new Map(
+            publications.map((publication) => [publication.targetEmail.toLowerCase(), publication])
+        );
+        const existingEmails = new Set(existingPublicationsByEmail.keys());
+        const nextEmails = new Set(normalizedTargetEmails);
+        const keptPublications = publications.filter((publication) => nextEmails.has(publication.targetEmail.toLowerCase()));
+        const keptPublicationIds = keptPublications.map((publication) => publication._id);
+        const removedPublicationIds = publications
+            .filter((publication) => !nextEmails.has(publication.targetEmail.toLowerCase()))
+            .map((publication) => publication._id);
 
         await TargetedPublication.updateMany(
-            { _id: { $in: publicationIds } },
+            { _id: { $in: keptPublicationIds } },
             {
                 $set: {
+                    publicationGroupId: groupId,
                     text,
                     imageUrl: nextImageUrl
                 }
             }
         );
 
-        const updatedPublications = await TargetedPublication.find({ _id: { $in: publicationIds } })
+        if (removedPublicationIds.length > 0) {
+            await Notification.deleteMany({ targetedPublicationId: { $in: removedPublicationIds } });
+
+            await TargetedPublication.deleteMany({ _id: { $in: removedPublicationIds } });
+        }
+
+        const addedUsers = targetUsers.filter((user) => !existingEmails.has(user.email.toLowerCase()));
+        let emailFailures = 0;
+
+        for (const targetUser of addedUsers) {
+            const createdPublication = await TargetedPublication.create({
+                publicationGroupId: groupId,
+                text,
+                imageUrl: nextImageUrl,
+                targetUser: targetUser._id,
+                targetEmail: targetUser.email,
+                createdBy: publications[0].createdBy
+            });
+
+            await Notification.create({
+                type: 'targeted_publication',
+                message: 'A private publication has been shared with you.',
+                userId: targetUser._id,
+                targetedPublicationId: createdPublication._id,
+                targetedPublicationGroupId: groupId,
+                audience: 'user'
+            });
+
+            try {
+                await sendTargetedPublicationEmail({ targetUser, text });
+            } catch (error) {
+                emailFailures += 1;
+                console.error(`Targeted publication email failed for ${targetUser.email}:`, error.message);
+            }
+        }
+
+        const updatedPublications = await TargetedPublication.find({ publicationGroupId: groupId })
             .populate('targetUser', 'name email')
             .populate('createdBy', 'name email')
             .sort('-createdAt');
 
         res.json({
-            message: 'Targeted publication updated successfully.',
+            message: emailFailures === 0
+                ? 'Targeted publication updated successfully.'
+                : `Targeted publication updated, but ${emailFailures} email${emailFailures > 1 ? 's' : ''} could not be sent.`,
             publications: updatedPublications
         });
     } catch (error) {

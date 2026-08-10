@@ -7,7 +7,43 @@ const TargetedPublicationEditModal = ({ group, onClose, onSaved }) => {
     const [text, setText] = useState(group?.text || '');
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(group?.imageUrl || '');
+    const [users, setUsers] = useState([]);
+    const [usersLoading, setUsersLoading] = useState(true);
+    const [selectedEmails, setSelectedEmails] = useState(
+        Array.isArray(group?.replies)
+            ? group.replies.map((reply) => reply.targetEmail).filter(Boolean)
+            : []
+    );
     const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        setText(group?.text || '');
+        setImageFile(null);
+        setImagePreview(group?.imageUrl || '');
+        setSelectedEmails(
+            Array.isArray(group?.replies)
+                ? [...new Set(group.replies.map((reply) => reply.targetEmail).filter(Boolean))]
+                : []
+        );
+    }, [group]);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const { data } = await api.get('/admin/users');
+                const approvedUsers = (Array.isArray(data) ? data : [])
+                    .filter((user) => user.role === 'user' && user.status === 'approved')
+                    .sort((a, b) => a.email.localeCompare(b.email));
+                setUsers(approvedUsers);
+            } catch (error) {
+                toast.error('Failed to load approved users');
+            } finally {
+                setUsersLoading(false);
+            }
+        };
+
+        fetchUsers();
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -34,6 +70,14 @@ const TargetedPublicationEditModal = ({ group, onClose, onSaved }) => {
         setImagePreview(URL.createObjectURL(file));
     };
 
+    const toggleTargetEmail = (email) => {
+        setSelectedEmails((current) => (
+            current.includes(email)
+                ? current.filter((item) => item !== email)
+                : [...current, email]
+        ));
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
 
@@ -42,8 +86,14 @@ const TargetedPublicationEditModal = ({ group, onClose, onSaved }) => {
             return;
         }
 
+        if (selectedEmails.length === 0) {
+            toast.error('Select at least one user email before saving');
+            return;
+        }
+
         const formData = new FormData();
         formData.append('text', text.trim());
+        formData.append('targetEmails', JSON.stringify(selectedEmails));
         if (imageFile) {
             formData.append('image', imageFile);
         }
@@ -78,6 +128,54 @@ const TargetedPublicationEditModal = ({ group, onClose, onSaved }) => {
 
                 <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
                     <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6 md:p-8">
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em]">User Emails</label>
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">
+                                    {selectedEmails.length} selected
+                                </span>
+                            </div>
+                            <div className="border-2 border-black bg-white max-h-72 overflow-y-auto">
+                                {usersLoading ? (
+                                    <div className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                        Loading approved users
+                                    </div>
+                                ) : users.length === 0 ? (
+                                    <div className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                        No approved users available
+                                    </div>
+                                ) : (
+                                    users.map((user) => {
+                                        const isSelected = selectedEmails.includes(user.email);
+
+                                        return (
+                                            <label
+                                                key={user._id}
+                                                className={`flex items-start gap-3 px-4 py-4 border-b border-black/10 cursor-pointer transition-colors ${
+                                                    isSelected ? 'bg-black text-white' : 'hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleTargetEmail(user.email)}
+                                                    className="mt-1 h-4 w-4 accent-primary-600"
+                                                />
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-black break-all">{user.email}</p>
+                                                    <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mt-1 ${
+                                                        isSelected ? 'text-white/70' : 'text-gray-400'
+                                                    }`}>
+                                                        {user.name}
+                                                    </p>
+                                                </div>
+                                            </label>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-[0.2em]">Text Content</label>
                             <textarea

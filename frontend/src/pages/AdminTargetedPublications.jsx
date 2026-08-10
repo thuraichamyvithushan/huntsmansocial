@@ -153,11 +153,11 @@ const AdminTargetedPublications = () => {
                         <form onSubmit={handleSubmit} className="border-2 border-black bg-white">
                             <div className="flex items-center gap-3 px-6 md:px-8 py-5 border-b-2 border-black">
                                 <SendHorizontal size={18} className="text-primary-600" />
-                                <div>
-                                    <h2 className="text-sm md:text-lg font-black uppercase tracking-tight italic">New Private Publication</h2>
-                                    <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-gray-400">Only one selected user will receive this email</p>
+                                    <div>
+                                        <h2 className="text-sm md:text-lg font-black uppercase tracking-tight italic">New Private Publication</h2>
+                                        <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-gray-400">Only selected users will receive this email</p>
+                                    </div>
                                 </div>
-                            </div>
 
                             <div className="p-6 md:p-8 space-y-6">
                                 <div className="space-y-2">
