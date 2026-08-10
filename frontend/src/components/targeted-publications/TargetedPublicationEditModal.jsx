@@ -65,7 +65,7 @@ const TargetedPublicationEditModal = ({ group, onClose, onSaved }) => {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/75" onClick={onClose} />
-            <div className="relative w-full max-w-2xl border-2 border-black bg-white overflow-hidden">
+            <div className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col border-2 border-black bg-white overflow-hidden">
                 <div className="flex items-center justify-between gap-4 px-6 py-4 bg-black text-white">
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Admin Edit</p>
@@ -76,33 +76,35 @@ const TargetedPublicationEditModal = ({ group, onClose, onSaved }) => {
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em]">Text Content</label>
-                        <textarea
-                            value={text}
-                            onChange={(event) => setText(event.target.value)}
-                            className="w-full min-h-[180px] border-2 border-black px-4 py-3 text-sm font-medium resize-none whitespace-pre-wrap"
-                            placeholder="Update the message..."
-                        />
+                <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6 md:p-8">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em]">Text Content</label>
+                            <textarea
+                                value={text}
+                                onChange={(event) => setText(event.target.value)}
+                                className="w-full min-h-[180px] border-2 border-black px-4 py-3 text-sm font-medium resize-none whitespace-pre-wrap"
+                                placeholder="Update the message..."
+                            />
+                        </div>
+
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em]">Replace Image</label>
+                            <label className="flex cursor-pointer items-center justify-center gap-3 border-2 border-dashed border-black px-4 py-8 text-center hover:bg-gray-50 transition-colors">
+                                <ImagePlus size={20} />
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Choose Image</span>
+                                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                            </label>
+
+                            {imagePreview && (
+                                <div className="border-2 border-black overflow-hidden bg-gray-50">
+                                    <img src={imagePreview} alt="Targeted publication preview" className="w-full max-h-[320px] object-cover" />
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="space-y-3">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em]">Replace Image</label>
-                        <label className="flex cursor-pointer items-center justify-center gap-3 border-2 border-dashed border-black px-4 py-8 text-center hover:bg-gray-50 transition-colors">
-                            <ImagePlus size={20} />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Choose Image</span>
-                            <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                        </label>
-
-                        {imagePreview && (
-                            <div className="border-2 border-black overflow-hidden bg-gray-50">
-                                <img src={imagePreview} alt="Targeted publication preview" className="w-full max-h-[320px] object-cover" />
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 border-t-2 border-black bg-white p-6 md:p-8">
                         <button
                             type="button"
                             onClick={onClose}
