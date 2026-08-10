@@ -336,14 +336,44 @@ exports.getUserNotifications = async (req, res) => {
             userName: a.createdBy?.name || 'Admin',
             comment: 'New post published',
             createdAt: a.createdAt,
-            count: 1
+            count: 1,
+            path: `/post/${a._id}`
         }));
 
-        const allNotifications = [...postNotes, ...commentNotes]
+        const targetedNotesRaw = await Notification.find({
+            userId: req.user._id,
+            read: false,
+            audience: 'user',
+            type: 'targeted_publication'
+        })
+            .populate('targetedPublicationId', 'text')
+            .sort('-createdAt');
+
+        const targetedNotes = targetedNotesRaw.map((note) => ({
+            _id: note._id,
+            postId: null,
+            type: note.type,
+            postTitle: note.targetedPublicationId?.text?.slice(0, 60) || 'Private Publication',
+            userName: 'HO SOCIAL',
+            comment: note.message,
+            createdAt: note.createdAt,
+            count: 1,
+            path: note.targetedPublicationGroupId
+                ? `/my-publications/${encodeURIComponent(note.targetedPublicationGroupId)}`
+                : '/my-publications'
+        }));
+
+        const allNotifications = [...postNotes, ...commentNotes, ...targetedNotes]
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
             .slice(0, 10);
 
-        const uniqueNotePostIds = [...new Set([...postNotes, ...commentNotes].map(n => n._id.toString()))];
+        const uniqueNotePostIds = [
+            ...new Set([
+                ...postNotes.map((n) => `post-${n._id.toString()}`),
+                ...commentNotes.map((n) => `comment-${n._id.toString()}`),
+                ...targetedNotes.map((n) => `targeted-${n._id.toString()}`)
+            ])
+        ];
 
         res.json({
             unreadCount: uniqueNotePostIds.length,

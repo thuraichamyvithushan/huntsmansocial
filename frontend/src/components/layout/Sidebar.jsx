@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, PlusSquare, FileText, LogOut, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Users, PlusSquare, FileText, LogOut, ChevronLeft, ChevronRight, ExternalLink, SendHorizontal, MessageSquareText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/logo.png';
 
@@ -16,9 +16,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         { name: 'Overview', path: '/admin-dashboard', icon: LayoutDashboard },
         { name: 'Members', path: '/admin/users', icon: Users },
         { name: 'New Post', path: '/admin/create-post', icon: PlusSquare },
+        { name: 'Targeted Publish', path: '/admin/targeted-publications', icon: SendHorizontal },
+        { name: 'Review Feedback', path: '/admin/targeted-publications/review', icon: MessageSquareText },
         { name: 'Archive', path: '/admin-dashboard?tab=archive', icon: FileText },
     ] : [
         { name: 'My Feed', path: '/dashboard', icon: LayoutDashboard },
+        { name: 'My Publications', path: '/my-publications', icon: MessageSquareText },
     ];
 
     return (

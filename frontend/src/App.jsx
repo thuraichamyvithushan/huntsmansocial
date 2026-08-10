@@ -16,6 +16,11 @@ import UserDashboard from './pages/UserDashboard';
 import PostDetails from './pages/PostDetails';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import AdminTargetedPublications from './pages/AdminTargetedPublications';
+import UserTargetedPublications from './pages/UserTargetedPublications';
+import AdminTargetedPublicationReviews from './pages/AdminTargetedPublicationReviews';
+import AdminTargetedPublicationDetail from './pages/AdminTargetedPublicationDetail';
+import UserTargetedPublicationDetail from './pages/UserTargetedPublicationDetail';
 
 const MainLayout = () => {
     const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
@@ -32,6 +37,8 @@ const MainLayout = () => {
                         <Route element={<ProtectedRoute />}>
                             <Route path="/dashboard" element={<UserDashboard />} />
                             <Route path="/post/:id" element={<PostDetails />} />
+                            <Route path="/my-publications" element={<UserTargetedPublications />} />
+                            <Route path="/my-publications/:groupId" element={<UserTargetedPublicationDetail />} />
                         </Route>
 
                         {/* Admin Only Routes */}
@@ -40,6 +47,9 @@ const MainLayout = () => {
                             <Route path="/admin/users" element={<UserManagement />} />
                             <Route path="/admin/create-post" element={<CreatePost />} />
                             <Route path="/admin/posts" element={<UserDashboard />} />
+                            <Route path="/admin/targeted-publications" element={<AdminTargetedPublications />} />
+                            <Route path="/admin/targeted-publications/review" element={<AdminTargetedPublicationReviews />} />
+                            <Route path="/admin/targeted-publications/review/:groupId" element={<AdminTargetedPublicationDetail />} />
                         </Route>
 
                         <Route path="/" element={<Navigate to={user?.role === 'admin' ? '/admin-dashboard' : '/dashboard'} replace />} />

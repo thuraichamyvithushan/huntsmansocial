@@ -282,7 +282,7 @@ const Navbar = ({ toggleSidebar }) => {
                                             notifications.latestComments.map((note) => (
                                                 <Link
                                                     key={note._id}
-                                                    to={note.postId ? `/post/${note.postId}` : (user.role === 'admin' ? "/admin-dashboard" : "/dashboard")}
+                                                    to={note.path || (note.postId ? `/post/${note.postId}` : (user.role === 'admin' ? "/admin-dashboard" : "/dashboard"))}
                                                     onClick={() => {
                                                         setShowDropdown(false);
                                                         handleMarkAsRead(note._id, note.type);
@@ -294,7 +294,10 @@ const Navbar = ({ toggleSidebar }) => {
                                                             {note.type === 'new_assignment' ? 'New Post' : 
                                                              note.type === 'like' ? 'New Like' : 
                                                              note.type === 'comment' ? 'New Comment' : 
-                                                             note.type === 'reply' ? 'Reply' : 'Activity'}
+                                                             note.type === 'reply' ? 'Reply' :
+                                                             note.type === 'targeted_publication' ? 'Private Publication' :
+                                                             note.type === 'targeted_publication_reply' ? 'Publication Reply' :
+                                                             'Activity'}
                                                         </span>
                                                         <span className="text-[9px] font-medium text-gray-400">
                                                             {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

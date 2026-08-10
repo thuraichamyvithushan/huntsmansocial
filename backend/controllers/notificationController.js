@@ -1,5 +1,19 @@
 const mongoose = require('mongoose');
 
+const buildTargetedPublicationPath = (notification) => {
+    const groupId = notification.targetedPublicationGroupId || notification.targetedPublicationId?.publicationGroupId;
+    return groupId
+        ? `/admin/targeted-publications/review/${encodeURIComponent(groupId)}`
+        : '/admin/targeted-publications/review';
+};
+
+const buildUserTargetedPublicationPath = (notification) => {
+    const groupId = notification.targetedPublicationGroupId || notification.targetedPublicationId?.publicationGroupId;
+    return groupId
+        ? `/my-publications/${encodeURIComponent(groupId)}`
+        : '/my-publications';
+};
+
 // @desc    Get admin's unified notifications (Comments + System Alerts)
 // @route   GET /api/notifications/admin
 // @access  Private/Admin
@@ -51,8 +65,12 @@ exports.getAdminNotifications = async (req, res) => {
         }));
 
         // 2. Get Unread System Notifications (Registrations, Login Attempts)
-        const systemNotifications = await Notification.find({ read: false })
+        const systemNotifications = await Notification.find({
+            read: false,
+            audience: { $ne: 'user' }
+        })
             .populate('userId', 'name email')
+            .populate('targetedPublicationId', 'text publicationGroupId')
             .sort('-createdAt')
             .limit(10);
 
@@ -62,11 +80,15 @@ exports.getAdminNotifications = async (req, res) => {
             type: n.type,
             postTitle: n.type === 'registration' ? 'New Registration' : 
                        n.type === 'login_attempt' ? 'Login Attempt' : 
-                       n.type === 'like' ? 'New Like' : 'New Activity',
-            userName: n.userId?.name || 'Guest User',
+                       n.type === 'like' ? 'New Like' :
+                       n.type === 'targeted_publication_reply' ? 'Private Publication Reply' :
+                       n.type === 'comment' ? 'New Comment' :
+                       'New Activity',
+            userName: n.type === 'targeted_publication_reply' ? 'HO SOCIAL' : (n.userId?.name || 'Guest User'),
             comment: n.message,
             createdAt: n.createdAt,
-            count: 1
+            count: 1,
+            path: n.type === 'targeted_publication_reply' ? buildTargetedPublicationPath(n) : undefined
         }));
 
         // 3. Combine and Sort
@@ -79,7 +101,10 @@ exports.getAdminNotifications = async (req, res) => {
             readByAdmin: false,
             userId: { $ne: adminId }
         });
-        const unreadSystemCount = await Notification.countDocuments({ read: false });
+        const unreadSystemCount = await Notification.countDocuments({
+            read: false,
+            audience: { $ne: 'user' }
+        });
 
         res.json({
             unreadCount: unreadPostsWithComments.length + unreadSystemCount,
@@ -139,7 +164,7 @@ exports.markAllAsRead = async (req, res) => {
             await Comment.updateMany({ readByAdmin: false }, { readByAdmin: true });
             
             // 2. Mark all system notifications as read
-            await Notification.updateMany({ read: false }, { read: true });
+            await Notification.updateMany({ read: false, audience: { $ne: 'user' } }, { read: true });
         } else {
             // 1. Mark all comments as read by this user
             await Comment.updateMany(
@@ -190,20 +215,25 @@ exports.getUserNotifications = async (req, res) => {
         // Get unread notifications for this user
         const notes = await Notification.find({ 
             userId: req.user._id,
-            read: false
+            read: false,
+            audience: 'user'
         })
         .populate('postId', 'title')
+        .populate('targetedPublicationId', 'text publicationGroupId')
         .sort('-createdAt');
 
         const formatted = notes.map(n => ({
             _id: n._id,
             postId: n.postId?._id,
             type: n.type,
-            postTitle: n.postId?.title || 'System',
+            postTitle: n.type === 'targeted_publication'
+                ? (n.targetedPublicationId?.text?.slice(0, 60) || 'Private Publication')
+                : (n.postId?.title || 'System'),
             userName: 'HO SOCIAL',
             comment: n.message,
             createdAt: n.createdAt,
-            count: 1
+            count: 1,
+            path: n.type === 'targeted_publication' ? buildUserTargetedPublicationPath(n) : undefined
         }));
 
         res.json({

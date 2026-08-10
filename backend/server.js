@@ -11,6 +11,7 @@ require('./models/User');
 require('./models/Post');
 require('./models/Comment');
 require('./models/Notification');
+require('./models/TargetedPublication');
 
 // Route files
 const authRoutes = require('./routes/authRoutes');
@@ -18,6 +19,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const postRoutes = require('./routes/postRoutes');
 const commentRoutes = require('./routes/commentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const targetedPublicationRoutes = require('./routes/targetedPublicationRoutes');
 
 dotenv.config();
 
@@ -83,6 +85,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/targeted-publications', targetedPublicationRoutes);
 
 // Centralized Error Handler
 app.use((err, req, res, next) => {
