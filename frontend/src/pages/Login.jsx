@@ -24,7 +24,7 @@ const Login = () => {
         try {
             // 1. Sign in with Firebase
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const idToken = await userCredential.user.getIdToken();
+            const idToken = await userCredential.user.getIdToken(true);
 
             // 2. Send token to our backend to get app-specific user data (role, status, etc)
             // 2. Send token to our backend to get app-specific user data (role, status, etc)

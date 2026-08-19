@@ -4,13 +4,14 @@ const firebaseAdmin = require('../config/firebase');
 
 const findFirebaseUser = async (decodedToken) => {
     const selectors = [];
+    const normalizedEmail = decodedToken.email?.toLowerCase();
 
     if (decodedToken.uid) {
         selectors.push({ firebaseUid: decodedToken.uid });
     }
 
-    if (decodedToken.email) {
-        selectors.push({ email: decodedToken.email });
+    if (normalizedEmail) {
+        selectors.push({ email: normalizedEmail });
     }
 
     if (!selectors.length) {

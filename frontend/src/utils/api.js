@@ -43,7 +43,8 @@
 
 import axios from 'axios';
 import CONFIG from '../config';
-import { auth } from '../config/firebase';
+import { auth, authReady } from '../config/firebase';
+import { signOut } from 'firebase/auth';
 
 const api = axios.create({
     baseURL: CONFIG.API_BASE_URL,
@@ -51,8 +52,11 @@ const api = axios.create({
 
 api.interceptors.request.use(
     async (config) => {
+        await authReady;
+
         if (auth.currentUser) {
-            const firebaseToken = await auth.currentUser.getIdToken();
+            const forceRefresh = config.url?.includes('/auth/firebase');
+            const firebaseToken = await auth.currentUser.getIdToken(forceRefresh);
             config.headers.Authorization = `Bearer ${firebaseToken}`;
             return config;
         }
@@ -75,12 +79,40 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
+        const originalRequest = error.config;
+
+        if (
+            error.response?.status === 401 &&
+            originalRequest &&
+            !originalRequest._retry &&
+            auth.currentUser
+        ) {
+            originalRequest._retry = true;
+
+            try {
+                const refreshedToken = await auth.currentUser.getIdToken(true);
+                originalRequest.headers = originalRequest.headers || {};
+                originalRequest.headers.Authorization = `Bearer ${refreshedToken}`;
+                return api(originalRequest);
+            } catch (refreshError) {
+                console.warn('Firebase token refresh failed');
+            }
+        }
+
         if (error.response?.status === 401) {
             console.warn(`Unauthorized: ${error.config?.url}`);
-            // Do NOT redirect to login
             localStorage.removeItem('userInfo');
+
+            if (auth.currentUser) {
+                try {
+                    await signOut(auth);
+                } catch (signOutError) {
+                    console.warn('Firebase sign-out failed after unauthorized response');
+                }
+            }
         }
+
         return Promise.reject(error);
     }
 );

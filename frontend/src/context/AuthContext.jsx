@@ -46,7 +46,7 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { auth } from '../config/firebase';
-import { signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const AuthContext = createContext();
 
@@ -55,13 +55,39 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const userInfo = localStorage.getItem('userInfo');
+        const syncStoredUser = (firebaseUser) => {
+            const userInfo = localStorage.getItem('userInfo');
 
-        if (userInfo) {
-            setUser(JSON.parse(userInfo));
-        } 
+            if (!userInfo) {
+                setUser(null);
+                setLoading(false);
+                return;
+            }
 
-        setLoading(false);
+            try {
+                const parsedUser = JSON.parse(userInfo);
+                const usesFirebaseSession = parsedUser?.tokenType === 'firebase';
+
+                if (usesFirebaseSession && !firebaseUser) {
+                    localStorage.removeItem('userInfo');
+                    setUser(null);
+                } else {
+                    setUser(parsedUser);
+                }
+            } catch (error) {
+                console.warn('Could not restore saved user session');
+                localStorage.removeItem('userInfo');
+                setUser(null);
+            }
+
+            setLoading(false);
+        };
+
+        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+            syncStoredUser(firebaseUser);
+        });
+
+        return unsubscribe;
     }, []);
 
     const login = (userData) => {

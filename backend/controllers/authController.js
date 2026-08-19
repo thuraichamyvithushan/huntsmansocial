@@ -257,6 +257,12 @@ exports.firebaseAuth = async (req, res) => {
         return res.status(400).json({ message: 'Firebase ID token is required' });
     }
 
+    if (!admin.apps.length) {
+        return res.status(500).json({
+            message: 'Firebase Admin is not configured on the server'
+        });
+    }
+
     try {
         // 1. Verify Firebase Token
         let decodedToken;
@@ -267,7 +273,8 @@ exports.firebaseAuth = async (req, res) => {
             return res.status(401).json({ message: 'Invalid or expired Firebase token', error: authError.message });
         }
 
-        const { uid, email, name } = decodedToken;
+        const { uid, name } = decodedToken;
+        const email = decodedToken.email?.toLowerCase();
 
         if (!email) {
             return res.status(400).json({ message: 'Email not provided by Firebase' });
