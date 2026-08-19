@@ -43,13 +43,20 @@
 
 import axios from 'axios';
 import CONFIG from '../config';
+import { auth } from '../config/firebase';
 
 const api = axios.create({
     baseURL: CONFIG.API_BASE_URL,
 });
 
 api.interceptors.request.use(
-    (config) => {
+    async (config) => {
+        if (auth.currentUser) {
+            const firebaseToken = await auth.currentUser.getIdToken();
+            config.headers.Authorization = `Bearer ${firebaseToken}`;
+            return config;
+        }
+
         const userInfo = localStorage.getItem('userInfo');
         if (userInfo) {
             try {

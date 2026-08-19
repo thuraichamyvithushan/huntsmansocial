@@ -15,6 +15,36 @@ const generateToken = (id) => {
     });
 };
 
+const buildSessionPayload = (user, fallbackToken) => {
+    const session = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status
+    };
+
+    if (process.env.JWT_SECRET) {
+        return {
+            ...session,
+            token: generateToken(user._id),
+            tokenType: 'app'
+        };
+    }
+
+    if (!fallbackToken) {
+        throw new Error('JWT_SECRET is missing from environment variables');
+    }
+
+    console.warn('JWT_SECRET missing; falling back to Firebase ID token for session auth.');
+
+    return {
+        ...session,
+        token: fallbackToken,
+        tokenType: 'firebase'
+    };
+};
+
 // @desc    Register new user
 // @route   POST /api/auth/register
 // @access  Public
@@ -129,14 +159,7 @@ exports.loginUser = async (req, res) => {
                 return res.status(401).json({ message: 'Account pending admin approval' });
             }
 
-            res.json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                status: user.status,
-                token: generateToken(user._id)
-            });
+            res.json(buildSessionPayload(user));
         } else {
             res.status(401).json({ message: 'Invalid email or password' });
         }
@@ -221,14 +244,7 @@ exports.resetPassword = async (req, res) => {
     user.resetPasswordExpire = undefined;
     await user.save();
 
-    res.status(200).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        token: generateToken(user._id)
-    });
+    res.status(200).json(buildSessionPayload(user));
 };
 
 // @desc    Firebase Auth (Login/Register sync)
@@ -257,10 +273,31 @@ exports.firebaseAuth = async (req, res) => {
             return res.status(400).json({ message: 'Email not provided by Firebase' });
         }
 
-        // 2. Find user in MongoDB
-        let user = await User.findOne({ email });
+        // 2. Find user in MongoDB by Firebase UID first, then email.
+        const [userByUid, userByEmail] = await Promise.all([
+            User.findOne({ firebaseUid: uid }),
+            User.findOne({ email })
+        ]);
+
+        if (
+            userByUid &&
+            userByEmail &&
+            userByUid._id.toString() !== userByEmail._id.toString()
+        ) {
+            return res.status(409).json({
+                message: 'This Firebase account is linked to a different portal user. Please contact an administrator.'
+            });
+        }
+
+        let user = userByUid || userByEmail;
 
         if (user) {
+            if (user.firebaseUid && user.firebaseUid !== uid) {
+                return res.status(409).json({
+                    message: 'This portal account is linked to a different Firebase login. Please contact an administrator.'
+                });
+            }
+
             // Update firebaseUid if not set
             if (!user.firebaseUid) {
                 user.firebaseUid = uid;
@@ -324,15 +361,8 @@ exports.firebaseAuth = async (req, res) => {
             return res.status(401).json({ message: 'Account pending admin approval' });
         }
 
-        // 6. Generate our own JWT for the existing middleware compatibility
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            status: user.status,
-            token: generateToken(user._id)
-        });
+        // 6. Return an app JWT when configured, or fall back to the Firebase token.
+        res.json(buildSessionPayload(user, idToken));
 
     } catch (error) {
         console.error('General Firebase Auth Error:', error);
